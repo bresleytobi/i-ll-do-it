@@ -1,0 +1,133 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/service.dart';
+import '../services/supabase_service.dart';
+import '../errors/app_exceptions.dart';
+import 'abstract_repositories.dart';
+
+/// Concrete implementation of ServiceRepository using Supabase
+class ServiceRepositoryImpl implements ServiceRepository {
+  final SupabaseService _supabaseService;
+
+  ServiceRepositoryImpl(this._supabaseService);
+
+  @override
+  Future<Service> createService({required Map<String, dynamic> data}) async {
+    try {
+      final response = await _supabaseService.insert(
+        table: 'services',
+        data: data,
+      );
+      return Service.fromJson(response);
+    } catch (e) {
+      throw ServerException('Failed to create service: $e');
+    }
+  }
+
+  @override
+  Future<List<Service>> getServices({String? category, String? sortBy}) async {
+    try {
+      final filters = category != null ? {'category': category} : null;
+      final results = await _supabaseService.query(
+        table: 'services',
+        filters: filters,
+      );
+      return results.map((e) => Service.fromJson(e)).toList();
+    } catch (e) {
+      throw ServerException('Failed to fetch services: $e');
+    }
+  }
+
+  @override
+  Future<Service> getServiceById({required String serviceId}) async {
+    try {
+      final results = await _supabaseService.query(
+        table: 'services',
+        filters: {'id': serviceId},
+      );
+
+      if (results.isEmpty) {
+        throw ServerException('Service not found');
+      }
+
+      return Service.fromJson(results.first);
+    } catch (e) {
+      if (e is ServerException) rethrow;
+      throw ServerException('Failed to fetch service: $e');
+    }
+  }
+
+  @override
+  Future<void> updateService({
+    required String serviceId,
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      await _supabaseService.update(
+        table: 'services',
+        id: serviceId,
+        data: data,
+      );
+    } catch (e) {
+      throw ServerException('Failed to update service: $e');
+    }
+  }
+
+  @override
+  Future<void> deleteService({required String serviceId}) async {
+    try {
+      await _supabaseService.delete(
+        table: 'services',
+        id: serviceId,
+      );
+    } catch (e) {
+      throw ServerException('Failed to delete service: $e');
+    }
+  }
+
+  @override
+  Future<List<Service>> searchServices({
+    required String query,
+    String? category,
+    String? location,
+  }) async {
+    try {
+      // Basic implementation using query (equality only for now)
+      final results = await _supabaseService.query(
+        table: 'services',
+      );
+      
+      // Filter locally for now as SupabaseService query is limited
+      return results
+          .map((e) => Service.fromJson(e))
+          .where((s) => s.title.toLowerCase().contains(query.toLowerCase()) || 
+                       s.description.toLowerCase().contains(query.toLowerCase()))
+          .toList();
+    } catch (e) {
+      throw ServerException('Search failed: $e');
+    }
+  }
+
+  @override
+  Future<List<Service>> getMyServices() async {
+    final currentUser = _supabaseService.currentUser;
+    if (currentUser == null) {
+      throw AuthenticationException('No user logged in');
+    }
+
+    try {
+      final results = await _supabaseService.query(
+        table: 'services',
+        filters: {'user_id': currentUser.id},
+      );
+      return results.map((e) => Service.fromJson(e)).toList();
+    } catch (e) {
+      throw ServerException('Failed to fetch your services: $e');
+    }
+  }
+}
+
+/// Provider for ServiceRepository
+final serviceRepositoryProvider = Provider<ServiceRepository>((ref) {
+  final supabaseService = ref.watch(supabaseServiceProvider);
+  return ServiceRepositoryImpl(supabaseService);
+});

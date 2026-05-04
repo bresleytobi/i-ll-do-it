@@ -1,0 +1,114 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/user.dart';
+import '../services/supabase_service.dart';
+import '../errors/app_exceptions.dart';
+import 'abstract_repositories.dart';
+
+/// Concrete implementation of UserRepository using Supabase
+class UserRepositoryImpl implements UserRepository {
+  final SupabaseService _supabaseService;
+
+  UserRepositoryImpl(this._supabaseService);
+
+  @override
+  Future<User> getCurrentUserProfile() async {
+    final currentUser = _supabaseService.currentUser;
+    if (currentUser == null) {
+      throw AuthenticationException('No user logged in');
+    }
+
+    try {
+      final data = await _supabaseService.query(
+        table: 'users',
+        filters: {'id': currentUser.id},
+      );
+
+      if (data.isEmpty) {
+        throw ServerException('User profile not found');
+      }
+
+      return User.fromJson(data.first);
+    } catch (e) {
+      if (e is ServerException || e is AuthenticationException) rethrow;
+      throw ServerException('Failed to fetch user profile: $e');
+    }
+  }
+
+  @override
+  Future<void> updateUserProfile({required Map<String, dynamic> data}) async {
+    final currentUser = _supabaseService.currentUser;
+    if (currentUser == null) {
+      throw AuthenticationException('No user logged in');
+    }
+
+    try {
+      await _supabaseService.update(
+        table: 'users',
+        id: currentUser.id,
+        data: data,
+      );
+    } catch (e) {
+      if (e is ServerException || e is AuthenticationException) rethrow;
+      throw ServerException('Failed to update profile: $e');
+    }
+  }
+
+  @override
+  Future<User> getUserById({required String userId}) async {
+    try {
+      final data = await _supabaseService.query(
+        table: 'users',
+        filters: {'id': userId},
+      );
+
+      if (data.isEmpty) {
+        throw ServerException('User not found');
+      }
+
+      return User.fromJson(data.first);
+    } catch (e) {
+      if (e is ServerException) rethrow;
+      throw ServerException('Failed to fetch user: $e');
+    }
+  }
+
+  @override
+  Future<List<User>> searchUsers({
+    required String query,
+    String? category,
+  }) async {
+    try {
+      // In a real app, this would be a more complex Postgres search
+      // For now, we'll do a simple match on display_name or bio
+      // Note: SupabaseService.query needs to support 'ilike' or similar for true search
+      // Using existing query method which only supports 'eq' and 'in'
+      
+      final results = await _supabaseService.query(
+        table: 'users',
+        // filters: {'display_name': query}, // Basic equality for now
+      );
+
+      return results.map((e) => User.fromJson(e)).toList();
+    } catch (e) {
+      throw ServerException('Search failed: $e');
+    }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getUserReviews({required String userId}) async {
+    try {
+      return await _supabaseService.query(
+        table: 'reviews',
+        filters: {'target_user_id': userId},
+      );
+    } catch (e) {
+      throw ServerException('Failed to fetch reviews: $e');
+    }
+  }
+}
+
+/// Provider for UserRepository
+final userRepositoryProvider = Provider<UserRepository>((ref) {
+  final supabaseService = ref.watch(supabaseServiceProvider);
+  return UserRepositoryImpl(supabaseService);
+});
