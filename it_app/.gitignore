@@ -1,0 +1,56 @@
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# This file tracks properties of this Flutter project.
+# Used by Flutter tooling to track customization of Flutter framework code.
+.metadata
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be tracked by version control.
+.vscode/
+
+# The .idea folder contains IntelliJ related metadata.
+.idea/
+
+# The .idea_modules folder contains IntelliJ project modules.
+*.iml
+*.iws
+*.ipr
+
+# Miscellaneous Flutter build files
+.DS_Store
+.dart_tool/
+*.class
+*.lock
+*.log
+*.swp
+*.swo
+*~
+
+# Project exclude paths
+.gradle
+.m2
+
+# IntelliJ
+out/
+gen/
+
+# Android Studio
+local.properties
+key.properties
+
+# The .env file
+.env
+.env.local
+.env.*.local
+
+# Generated files
+*.g.dart
+*.config.dart
+
+# Coverage
+coverage/
+
+# Exceptions to above rules.
+!/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
