@@ -4,11 +4,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/models/service.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../providers/services_provider.dart';
 
 class CreateServiceScreen extends ConsumerStatefulWidget {
-  const CreateServiceScreen({Key? key}) : super(key: key);
+  final Service? service;
+
+  const CreateServiceScreen({
+    Key? key,
+    this.service,
+  }) : super(key: key);
 
   @override
   ConsumerState<CreateServiceScreen> createState() => _CreateServiceScreenState();
@@ -20,8 +26,8 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
   late TextEditingController _descriptionController;
   late TextEditingController _priceController;
   late TextEditingController _deliveryTimeController;
-  String _selectedCategory = 'Graphic Design';
-  final List<File> _selectedImages = [];
+  late String _selectedCategory;
+  final List<dynamic> _images = []; // Can be File or String (URL)
 
   final List<String> _categories = [
     'Graphic Design',
@@ -39,10 +45,15 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController();
-    _descriptionController = TextEditingController();
-    _priceController = TextEditingController();
-    _deliveryTimeController = TextEditingController();
+    final service = widget.service;
+    _titleController = TextEditingController(text: service?.title ?? '');
+    _descriptionController = TextEditingController(text: service?.description ?? '');
+    _priceController = TextEditingController(text: service?.price.toString() ?? '');
+    _deliveryTimeController = TextEditingController(text: service?.deliveryTime.toString() ?? '');
+    _selectedCategory = service?.category ?? 'Graphic Design';
+    if (service != null) {
+      _images.addAll(service.images);
+    }
   }
 
   @override
@@ -63,12 +74,12 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
 
     if (pickedFile != null) {
       setState(() {
-        _selectedImages.add(File(pickedFile.path));
+        _images.add(File(pickedFile.path));
       });
     }
   }
 
-  Future<void> _handleCreate() async {
+  Future<void> _handleSave() async {
     if (_formKey.currentState!.validate()) {
       final currentUser = ref.read(supabaseServiceProvider).currentUser;
       if (currentUser == null) return;
@@ -77,12 +88,16 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
       final serviceNotifier = ref.read(serviceNotifierProvider.notifier);
 
       try {
-        // Upload images first
-        for (final file in _selectedImages) {
-          final bytes = await file.readAsBytes();
-          final url = await serviceNotifier.uploadImage(bytes);
-          if (url != null) {
-            imageUrls.add(url);
+        // Handle images
+        for (final item in _images) {
+          if (item is String) {
+            imageUrls.add(item);
+          } else if (item is File) {
+            final bytes = await item.readAsBytes();
+            final url = await serviceNotifier.uploadImage(bytes);
+            if (url != null) {
+              imageUrls.add(url);
+            }
           }
         }
 
@@ -97,11 +112,15 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
           'is_active': true,
         };
 
-        await serviceNotifier.createService(data);
+        if (widget.service != null) {
+          await serviceNotifier.updateService(widget.service!.id, data);
+        } else {
+          await serviceNotifier.createService(data);
+        }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error uploading images: $e')),
+            SnackBar(content: Text('Error saving service: $e')),
           );
         }
       }
@@ -111,6 +130,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(serviceNotifierProvider);
+    final isEditing = widget.service != null;
 
     ref.listen<ServiceState>(serviceNotifierProvider, (previous, next) {
       if (next.errorMessage != null) {
@@ -119,7 +139,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
         );
       } else if (next.isSuccess) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Service created successfully!')),
+          SnackBar(content: Text(isEditing ? 'Service updated successfully!' : 'Service created successfully!')),
         );
         context.pop();
         ref.read(serviceNotifierProvider.notifier).reset();
@@ -129,7 +149,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
     return Scaffold(
       backgroundColor: AppColors.darkBg,
       appBar: AppBar(
-        title: const Text('Create Service'),
+        title: Text(isEditing ? 'Edit Service' : 'Create Service'),
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -164,30 +184,36 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   children: [
-                    ..._selectedImages.map((file) => Container(
-                          width: 100,
-                          height: 100,
-                          margin: const EdgeInsets.only(right: 8),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            image: DecorationImage(
-                              image: FileImage(file),
-                              fit: BoxFit.cover,
-                            ),
+                    ..._images.map((item) {
+                      final DecorationImage image;
+                      if (item is String) {
+                        image = DecorationImage(image: NetworkImage(item), fit: BoxFit.cover);
+                      } else {
+                        image = DecorationImage(image: FileImage(item), fit: BoxFit.cover);
+                      }
+
+                      return Container(
+                        width: 100,
+                        height: 100,
+                        margin: const EdgeInsets.only(right: 8),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          image: image,
+                        ),
+                        child: Align(
+                          alignment: Alignment.topRight,
+                          child: IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            onPressed: () {
+                              setState(() {
+                                _images.remove(item);
+                              });
+                            },
                           ),
-                          child: Align(
-                            alignment: Alignment.topRight,
-                            child: IconButton(
-                              icon: const Icon(Icons.close, color: Colors.white),
-                              onPressed: () {
-                                setState(() {
-                                  _selectedImages.remove(file);
-                                });
-                              },
-                            ),
-                          ),
-                        )),
-                    if (_selectedImages.length < 5)
+                        ),
+                      );
+                    }),
+                    if (_images.length < 5)
                       GestureDetector(
                         onTap: _pickImage,
                         child: Container(
@@ -212,6 +238,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
               // Title
               TextFormField(
                 controller: _titleController,
+                style: const TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   hintText: 'e.g., I will design a professional logo',
                   labelText: 'Service Title',
@@ -225,6 +252,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
               TextFormField(
                 controller: _descriptionController,
                 maxLines: 4,
+                style: const TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   hintText: 'Describe what you offer in detail...',
                   labelText: 'Description',
@@ -262,10 +290,12 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
                     child: TextFormField(
                       controller: _priceController,
                       keyboardType: TextInputType.number,
+                      style: const TextStyle(color: AppColors.textPrimary),
                       decoration: const InputDecoration(
                         hintText: '0.00',
                         labelText: 'Price (R)',
                         prefixText: 'R ',
+                        prefixStyle: TextStyle(color: AppColors.primary),
                       ),
                       validator: (value) =>
                           value == null || double.tryParse(value) == null
@@ -278,6 +308,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
                     child: TextFormField(
                       controller: _deliveryTimeController,
                       keyboardType: TextInputType.number,
+                      style: const TextStyle(color: AppColors.textPrimary),
                       decoration: const InputDecoration(
                         hintText: '3',
                         labelText: 'Delivery (Days)',
@@ -292,12 +323,12 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Create Button
+              // Save Button
               SizedBox(
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: state.isLoading ? null : _handleCreate,
+                  onPressed: state.isLoading ? null : _handleSave,
                   child: state.isLoading
                       ? const SizedBox(
                           height: 20,
@@ -307,7 +338,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text('Publish Service'),
+                      : Text(isEditing ? 'Save Changes' : 'Publish Service'),
                 ),
               ),
             ],

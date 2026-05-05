@@ -18,6 +18,8 @@ class User with _$User {
     @Default(0.0) double rating,
     @JsonKey(name: 'completed_jobs') @Default(0) int completedJobs,
     @JsonKey(name: 'is_verified') @Default(false) bool isVerified,
+    @JsonKey(name: 'verification_status') String? verificationStatus,
+    @JsonKey(name: 'escrow_balance') @Default(0.0) double escrowBalance,
     @JsonKey(name: 'created_at') required DateTime createdAt,
     @JsonKey(name: 'updated_at') required DateTime updatedAt,
   }) = _User;

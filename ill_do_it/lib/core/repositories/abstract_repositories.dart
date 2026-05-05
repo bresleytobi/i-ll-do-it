@@ -2,6 +2,10 @@ import '../models/user.dart';
 import '../models/service.dart';
 import '../models/job.dart';
 import '../models/transaction.dart';
+import '../models/message.dart';
+import '../models/order.dart';
+import '../models/job_application.dart';
+import '../models/withdrawal_request.dart';
 
 /// Abstract repository for user operations
 abstract class UserRepository {
@@ -26,8 +30,26 @@ abstract class UserRepository {
   /// Get user reviews
   Future<List<Map<String, dynamic>>> getUserReviews({required String userId});
 
-  /// Request user verification
-  Future<void> requestVerification();
+  /// Upload a verification document
+  Future<String> uploadVerificationDoc({required List<int> bytes, required String fileName});
+
+  /// Submit verification request with documents
+  Future<void> submitVerification({
+    required String idType,
+    required String idFrontUrl,
+    String? idBackUrl,
+    String? selfieUrl,
+  });
+
+  /// Report a user for misconduct or scam
+  Future<void> reportUser({
+    required String targetUserId,
+    required String reason,
+    String? description,
+  });
+
+  /// Block a user
+  Future<void> blockUser({required String targetUserId});
 }
 
 /// Abstract repository for service operations
@@ -101,6 +123,50 @@ abstract class JobRepository {
 
   /// Get jobs posted by the current user
   Future<List<Job>> getMyJobs();
+
+  /// Apply for a job
+  Future<JobApplication> applyForJob({
+    required String jobId,
+    String? coverLetter,
+    double? bidAmount,
+  });
+
+  /// Get applications for a specific job (for client)
+  Future<List<JobApplication>> getJobApplications({required String jobId});
+
+  /// Get my job applications (for applicant)
+  Future<List<JobApplication>> getMyApplications();
+
+  /// Update application status (for client to accept/reject)
+  Future<void> updateApplicationStatus({
+    required String applicationId,
+    required ApplicationStatus status,
+  });
+}
+
+/// Abstract repository for order operations
+abstract class OrderRepository {
+  /// Create a new order
+  Future<Order> createOrder({
+    required String serviceId,
+    required String sellerId,
+    required double amount,
+  });
+
+  /// Get order by ID
+  Future<Order> getOrderById({required String orderId});
+
+  /// Get orders where user is buyer
+  Future<List<Order>> getMyPurchases();
+
+  /// Get orders where user is seller
+  Future<List<Order>> getMySales();
+
+  /// Update order status
+  Future<void> updateOrderStatus({
+    required String orderId,
+    required OrderStatus status,
+  });
 }
 
 /// Abstract repository for transaction operations
@@ -111,24 +177,70 @@ abstract class TransactionRepository {
   /// Get wallet balance
   Future<double> getWalletBalance();
 
+  /// Get escrow balance
+  Future<double> getEscrowBalance();
+
   /// Deposit funds into wallet
   Future<Transaction> depositFunds({
     required double amount,
     required String reference,
+    required String gateway, // Ozow, PayFast, etc.
   });
 
-  /// Withdraw funds
-  Future<Transaction> withdrawFunds({
+  /// Request withdrawal
+  Future<void> requestWithdrawal({
     required double amount,
-    required String bankAccount,
+    required String bankName,
+    required String accountHolder,
+    required String accountNumber,
+    required String branchCode,
+    required String accountType,
   });
 
-  /// Process payment
+  /// Create escrow payment
+  Future<Transaction> createEscrowPayment({
+    required double amount,
+    required String receiverId,
+    required String orderId,
+  });
+
+  /// Release escrow to seller
+  Future<void> releaseEscrow({required String orderId});
+
+  /// Refund escrow to buyer
+  Future<void> refundEscrow({required String orderId});
+
+  /// Get my withdrawal requests
+  Future<List<WithdrawalRequest>> getMyWithdrawalRequests();
+
+  /// Process direct payment (if needed)
   Future<Transaction> processPayment({
     required double amount,
     required String receiverId,
     required String serviceId,
   });
+}
+
+/// Abstract repository for message operations
+abstract class MessageRepository {
+  /// Send a message
+  Future<Message> sendMessage({
+    required String receiverId,
+    required String content,
+    String? imageUrl,
+  });
+
+  /// Get messages between two users
+  Future<List<Message>> getChatMessages({required String otherUserId});
+
+  /// Get all chat conversations for current user
+  Future<List<Map<String, dynamic>>> getConversations();
+
+  /// Mark messages as read
+  Future<void> markAsRead({required String senderId});
+
+  /// Stream of new messages for a conversation
+  Stream<List<Message>> watchMessages({required String otherUserId});
 }
 
 /// Abstract repository for review operations

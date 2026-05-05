@@ -13,6 +13,7 @@ class Transaction with _$Transaction {
     required String type,
     @Default('pending') String status,
     String? reference,
+    @JsonKey(name: 'order_id') String? orderId,
     @JsonKey(name: 'created_at') required DateTime createdAt,
     @JsonKey(name: 'updated_at') required DateTime updatedAt,
   }) = _Transaction;

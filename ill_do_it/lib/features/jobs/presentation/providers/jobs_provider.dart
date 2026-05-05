@@ -21,6 +21,12 @@ final jobsByStatusProvider = FutureProvider.family<List<Job>, String>((ref, stat
   return jobRepository.getJobs(status: status);
 });
 
+/// Provider for a single job by ID
+final jobProvider = FutureProvider.family<Job, String>((ref, id) async {
+  final jobRepository = ref.watch(jobRepositoryProvider);
+  return jobRepository.getJobById(jobId: id);
+});
+
 /// State for Job operations
 class JobState {
   final bool isLoading;
@@ -95,6 +101,20 @@ class JobNotifier extends StateNotifier<JobState> {
       _ref.invalidate(openJobsProvider);
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
+    }
+  }
+
+  Future<void> applyForJob(String jobId) async {
+    state = state.copyWith(isLoading: true, errorMessage: null, isSuccess: false);
+    try {
+      await _jobRepository.applyForJob(jobId: jobId);
+      state = state.copyWith(isLoading: false, isSuccess: true);
+      _ref.invalidate(jobProvider(jobId));
+      _ref.invalidate(openJobsProvider);
+      _ref.invalidate(jobsByStatusProvider('applied'));
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      rethrow;
     }
   }
 

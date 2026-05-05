@@ -207,7 +207,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: isLoading ? null : () {},
+                      onPressed: isLoading
+                          ? null
+                          : () => context.push(AppRoutes.phoneLogin),
                       child: const Icon(Icons.phone),
                     ),
                   ),

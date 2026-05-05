@@ -22,7 +22,7 @@ class MainBottomNavBar extends StatelessWidget {
         context.go(AppRoutes.explore);
         break;
       case 2:
-        context.go(AppRoutes.services);
+        context.go(AppRoutes.messages);
         break;
       case 3:
         context.go(AppRoutes.jobs);
@@ -54,9 +54,9 @@ class MainBottomNavBar extends StatelessWidget {
           label: 'Explore',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.work_outline),
-          activeIcon: Icon(Icons.work),
-          label: 'Services',
+          icon: Icon(Icons.chat_bubble_outline),
+          activeIcon: Icon(Icons.chat_bubble),
+          label: 'Messages',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.assignment_outlined),

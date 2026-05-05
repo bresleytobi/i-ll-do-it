@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_strings.dart';
 import '../../../../core/repositories/user_repository_impl.dart';
 import '../providers/profile_provider.dart';
 
@@ -17,7 +18,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _displayNameController;
   late TextEditingController _bioController;
-  late TextEditingController _locationController;
+  String? _selectedProvince;
   late TextEditingController _skillsController;
   bool _isLoading = false;
   File? _imageFile;
@@ -28,7 +29,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     final profile = ref.read(profileProvider).value;
     _displayNameController = TextEditingController(text: profile?.displayName ?? '');
     _bioController = TextEditingController(text: profile?.bio ?? '');
-    _locationController = TextEditingController(text: profile?.location ?? '');
+    _selectedProvince = profile?.location;
     _skillsController = TextEditingController(text: profile?.skills.join(', ') ?? '');
   }
 
@@ -36,7 +37,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   void dispose() {
     _displayNameController.dispose();
     _bioController.dispose();
-    _locationController.dispose();
     _skillsController.dispose();
     super.dispose();
   }
@@ -73,7 +73,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       await userRepository.updateUserProfile(data: {
         'display_name': _displayNameController.text.trim(),
         'bio': _bioController.text.trim(),
-        'location': _locationController.text.trim(),
+        'location': _selectedProvince,
         'skills': _skillsController.text
             .split(',')
             .map((e) => e.trim())
@@ -136,7 +136,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           if (_displayNameController.text.isEmpty && profile.displayName.isNotEmpty) {
             _displayNameController.text = profile.displayName;
             _bioController.text = profile.bio ?? '';
-            _locationController.text = profile.location ?? '';
+            _selectedProvince ??= profile.location;
             _skillsController.text = profile.skills.join(', ');
           }
 
@@ -229,11 +229,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   const SizedBox(height: 20),
 
                   // Location
-                  TextFormField(
-                    controller: _locationController,
+                  DropdownButtonFormField<String>(
+                    value: _selectedProvince,
                     style: const TextStyle(color: AppColors.textPrimary),
+                    dropdownColor: AppColors.surface,
                     decoration: const InputDecoration(
-                      labelText: 'Location (Province/City)',
+                      labelText: 'Location (Province)',
                       labelStyle: TextStyle(color: AppColors.textSecondary),
                       border: OutlineInputBorder(),
                       enabledBorder: OutlineInputBorder(
@@ -244,6 +245,23 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       ),
                       prefixIcon: Icon(Icons.location_on_outlined, color: AppColors.textSecondary),
                     ),
+                    items: AppStrings.provinces.map((String province) {
+                      return DropdownMenuItem<String>(
+                        value: province,
+                        child: Text(province),
+                      );
+                    }).toList(),
+                    onChanged: (String? newValue) {
+                      setState(() {
+                        _selectedProvince = newValue;
+                      });
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please select a province';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 20),
 

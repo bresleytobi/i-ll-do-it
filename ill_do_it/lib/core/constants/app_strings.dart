@@ -103,4 +103,17 @@ class AppStrings {
   static const String serviceCreated = 'Service created successfully';
   static const String jobPosted = 'Job posted successfully';
   static const String copied = 'Copied to clipboard';
+
+  // South African Realities
+  static const List<String> provinces = [
+    'Eastern Cape',
+    'Free State',
+    'Gauteng',
+    'KwaZulu-Natal',
+    'Limpopo',
+    'Mpumalanga',
+    'Northern Cape',
+    'North West',
+    'Western Cape',
+  ];
 }

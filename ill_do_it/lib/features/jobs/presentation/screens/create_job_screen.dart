@@ -5,11 +5,17 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/models/job.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../providers/jobs_provider.dart';
 
 class CreateJobScreen extends ConsumerStatefulWidget {
-  const CreateJobScreen({Key? key}) : super(key: key);
+  final Job? job;
+
+  const CreateJobScreen({
+    Key? key,
+    this.job,
+  }) : super(key: key);
 
   @override
   ConsumerState<CreateJobScreen> createState() => _CreateJobScreenState();
@@ -20,29 +26,34 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
   late TextEditingController _titleController;
   late TextEditingController _descriptionController;
   late TextEditingController _budgetController;
-  DateTime? _selectedDeadline;
-  String _selectedCategory = 'Graphic Design';
-  final List<File> _selectedImages = [];
+  late DateTime _selectedDeadline;
+  late String _selectedCategory;
+  final List<dynamic> _images = [];
 
   final List<String> _categories = [
-    'Graphic Design',
-    'Web Development',
-    'Tutoring',
-    'Video Editing',
-    'CV Writing',
+    'Design',
+    'Development',
+    'Marketing',
+    'Writing',
+    'Video',
+    'Music',
     'Photography',
-    'Social Media Help',
-    'AI Services',
-    'Music & Audio',
-    'Tech Support',
+    'Tutoring',
+    'Support',
   ];
 
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController();
-    _descriptionController = TextEditingController();
-    _budgetController = TextEditingController();
+    final job = widget.job;
+    _titleController = TextEditingController(text: job?.title ?? '');
+    _descriptionController = TextEditingController(text: job?.description ?? '');
+    _budgetController = TextEditingController(text: job?.budget.toString() ?? '');
+    _selectedDeadline = job?.deadline ?? DateTime.now().add(const Duration(days: 7));
+    _selectedCategory = job?.category ?? 'Design';
+    if (job != null) {
+      _images.addAll(job.images);
+    }
   }
 
   @override
@@ -53,24 +64,10 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 70,
-    );
-
-    if (pickedFile != null) {
-      setState(() {
-        _selectedImages.add(File(pickedFile.path));
-      });
-    }
-  }
-
-  Future<void> _selectDeadline(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
+  Future<void> _selectDeadline() async {
+    final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now().add(const Duration(days: 7)),
+      initialDate: _selectedDeadline,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (context, child) {
@@ -87,22 +84,28 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
         );
       },
     );
-    if (picked != null && picked != _selectedDeadline) {
+
+    if (picked != null) {
+      setState(() => _selectedDeadline = picked);
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+    );
+
+    if (pickedFile != null) {
       setState(() {
-        _selectedDeadline = picked;
+        _images.add(File(pickedFile.path));
       });
     }
   }
 
-  Future<void> _handleCreate() async {
+  Future<void> _handleSave() async {
     if (_formKey.currentState!.validate()) {
-      if (_selectedDeadline == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a deadline')),
-        );
-        return;
-      }
-
       final currentUser = ref.read(supabaseServiceProvider).currentUser;
       if (currentUser == null) return;
 
@@ -110,12 +113,16 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
       final jobNotifier = ref.read(jobNotifierProvider.notifier);
 
       try {
-        // Upload images first
-        for (final file in _selectedImages) {
-          final bytes = await file.readAsBytes();
-          final url = await jobNotifier.uploadImage(bytes);
-          if (url != null) {
-            imageUrls.add(url);
+        // Handle images
+        for (final item in _images) {
+          if (item is String) {
+            imageUrls.add(item);
+          } else if (item is File) {
+            final bytes = await item.readAsBytes();
+            final url = await jobNotifier.uploadImage(bytes);
+            if (url != null) {
+              imageUrls.add(url);
+            }
           }
         }
 
@@ -125,16 +132,20 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
           'description': _descriptionController.text.trim(),
           'category': _selectedCategory,
           'budget': double.parse(_budgetController.text),
-          'deadline': _selectedDeadline!.toIso8601String(),
+          'deadline': _selectedDeadline.toIso8601String(),
           'images': imageUrls,
-          'status': 'open',
+          'status': widget.job?.status ?? 'open',
         };
 
-        await jobNotifier.createJob(data);
+        if (widget.job != null) {
+          await jobNotifier.updateJob(widget.job!.id, data);
+        } else {
+          await jobNotifier.createJob(data);
+        }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error uploading images: $e')),
+            SnackBar(content: Text('Error saving job: $e')),
           );
         }
       }
@@ -144,6 +155,7 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(jobNotifierProvider);
+    final isEditing = widget.job != null;
 
     ref.listen<JobState>(jobNotifierProvider, (previous, next) {
       if (next.errorMessage != null) {
@@ -152,7 +164,7 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
         );
       } else if (next.isSuccess) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Job posted successfully!')),
+          SnackBar(content: Text(isEditing ? 'Job updated successfully!' : 'Job posted successfully!')),
         );
         context.pop();
         ref.read(jobNotifierProvider.notifier).reset();
@@ -162,7 +174,7 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
     return Scaffold(
       backgroundColor: AppColors.darkBg,
       appBar: AppBar(
-        title: const Text('Post a Job'),
+        title: Text(isEditing ? 'Edit Job' : 'Post a Job'),
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -182,7 +194,116 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Image Picker
+              // Title
+              TextFormField(
+                controller: _titleController,
+                style: const TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(
+                  hintText: 'e.g., Need a website for my bakery',
+                  labelText: 'Job Title',
+                ),
+                validator: (value) =>
+                    value == null || value.isEmpty ? 'Please enter a title' : null,
+              ),
+              const SizedBox(height: 16),
+
+              // Description
+              TextFormField(
+                controller: _descriptionController,
+                maxLines: 5,
+                style: const TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(
+                  hintText: 'Describe the job requirements in detail...',
+                  labelText: 'Description',
+                ),
+                validator: (value) =>
+                    value == null || value.isEmpty ? 'Please enter a description' : null,
+              ),
+              const SizedBox(height: 16),
+
+              // Category & Budget
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: _selectedCategory,
+                      decoration: const InputDecoration(
+                        labelText: 'Category',
+                      ),
+                      dropdownColor: AppColors.surface,
+                      items: _categories.map((cat) {
+                        return DropdownMenuItem(
+                          value: cat,
+                          child: Text(cat, style: const TextStyle(color: AppColors.textPrimary)),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => _selectedCategory = value);
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _budgetController,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(color: AppColors.textPrimary),
+                      decoration: const InputDecoration(
+                        hintText: '0.00',
+                        labelText: 'Budget (R)',
+                        prefixText: 'R ',
+                        prefixStyle: TextStyle(color: AppColors.primary),
+                      ),
+                      validator: (value) =>
+                          value == null || double.tryParse(value) == null
+                              ? 'Invalid amount'
+                              : null,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Deadline
+              GestureDetector(
+                onTap: _selectDeadline,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.borderColor),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_today, color: AppColors.primary, size: 20),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Deadline',
+                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          ),
+                          Text(
+                            DateFormat('MMM dd, yyyy').format(_selectedDeadline),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Images
               const Text(
                 'Job Images (Optional)',
                 style: TextStyle(
@@ -197,30 +318,36 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   children: [
-                    ..._selectedImages.map((file) => Container(
-                          width: 100,
-                          height: 100,
-                          margin: const EdgeInsets.only(right: 8),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            image: DecorationImage(
-                              image: FileImage(file),
-                              fit: BoxFit.cover,
-                            ),
+                    ..._images.map((item) {
+                      final DecorationImage image;
+                      if (item is String) {
+                        image = DecorationImage(image: NetworkImage(item), fit: BoxFit.cover);
+                      } else {
+                        image = DecorationImage(image: FileImage(item), fit: BoxFit.cover);
+                      }
+
+                      return Container(
+                        width: 100,
+                        height: 100,
+                        margin: const EdgeInsets.only(right: 8),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          image: image,
+                        ),
+                        child: Align(
+                          alignment: Alignment.topRight,
+                          child: IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            onPressed: () {
+                              setState(() {
+                                _images.remove(item);
+                              });
+                            },
                           ),
-                          child: Align(
-                            alignment: Alignment.topRight,
-                            child: IconButton(
-                              icon: const Icon(Icons.close, color: Colors.white),
-                              onPressed: () {
-                                setState(() {
-                                  _selectedImages.remove(file);
-                                });
-                              },
-                            ),
-                          ),
-                        )),
-                    if (_selectedImages.length < 5)
+                        ),
+                      );
+                    }),
+                    if (_images.length < 3)
                       GestureDetector(
                         onTap: _pickImage,
                         child: Container(
@@ -240,95 +367,6 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
-
-              // Title
-              TextFormField(
-                controller: _titleController,
-                decoration: const InputDecoration(
-                  hintText: 'e.g., Need a logo for my bakery',
-                  labelText: 'Job Title',
-                ),
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Please enter a title' : null,
-              ),
-              const SizedBox(height: 16),
-
-              // Description
-              TextFormField(
-                controller: _descriptionController,
-                maxLines: 4,
-                decoration: const InputDecoration(
-                  hintText: 'Describe what you need done...',
-                  labelText: 'Description',
-                ),
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Please enter a description' : null,
-              ),
-              const SizedBox(height: 16),
-
-              // Category
-              DropdownButtonFormField<String>(
-                value: _selectedCategory,
-                decoration: const InputDecoration(
-                  labelText: 'Category',
-                ),
-                dropdownColor: AppColors.surface,
-                items: _categories.map((cat) {
-                  return DropdownMenuItem(
-                    value: cat,
-                    child: Text(cat, style: const TextStyle(color: AppColors.textPrimary)),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _selectedCategory = value);
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Budget & Deadline
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _budgetController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        hintText: '0.00',
-                        labelText: 'Budget (R)',
-                        prefixText: 'R ',
-                      ),
-                      validator: (value) =>
-                          value == null || double.tryParse(value) == null
-                              ? 'Invalid budget'
-                              : null,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: InkWell(
-                      onTap: () => _selectDeadline(context),
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Deadline',
-                        ),
-                        child: Text(
-                          _selectedDeadline == null
-                              ? 'Select Date'
-                              : DateFormat('MMM dd, yyyy').format(_selectedDeadline!),
-                          style: TextStyle(
-                            color: _selectedDeadline == null
-                                ? AppColors.textSecondary
-                                : AppColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
               const SizedBox(height: 32),
 
               // Post Button
@@ -336,7 +374,7 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: state.isLoading ? null : _handleCreate,
+                  onPressed: state.isLoading ? null : _handleSave,
                   child: state.isLoading
                       ? const SizedBox(
                           height: 20,
@@ -346,7 +384,7 @@ class _CreateJobScreenState extends ConsumerState<CreateJobScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text('Post Job'),
+                      : Text(isEditing ? 'Save Changes' : 'Post Job'),
                 ),
               ),
             ],

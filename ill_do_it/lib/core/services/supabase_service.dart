@@ -173,8 +173,9 @@ class SupabaseService {
       }
 
       final response = await query;
-      return response as List<Map<String, dynamic>>;
+      return (response as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
     } catch (e) {
+      print('Supabase query error on table $table: $e');
       throw ServerException('Query failed: $e');
     }
   }
@@ -186,8 +187,9 @@ class SupabaseService {
   }) async {
     try {
       final response = await client.from(table).insert(data).select();
-      return response[0] as Map<String, dynamic>;
+      return Map<String, dynamic>.from((response as List).first as Map);
     } catch (e) {
+      print('Supabase insert error on table $table: $e');
       throw ServerException('Insert failed: $e');
     }
   }
@@ -204,8 +206,9 @@ class SupabaseService {
           .update(data)
           .eq('id', id)
           .select();
-      return response[0] as Map<String, dynamic>;
+      return Map<String, dynamic>.from((response as List).first as Map);
     } catch (e) {
+      print('Supabase update error on table $table: $e');
       throw ServerException('Update failed: $e');
     }
   }

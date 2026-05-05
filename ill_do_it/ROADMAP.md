@@ -24,7 +24,7 @@
 - [x] User profile updates logic
 
 ### In Progress 🔄
-- [ ] Payment integration
+- [🔄] Yoco payment integration
 - [ ] Push notifications
 
 ### Not Started ⏳
@@ -90,11 +90,11 @@
 ## Phase 3: Payments & Wallet (Weeks 13-16)
 
 ### Features
-- [ ] Wallet system
-- [ ] Payment processing (Ozow/PayFast)
-- [ ] Withdrawal system
-- [ ] Transaction history
-- [ ] Invoice generation
+- [🔄] Wallet system (UI implemented, logic in progress)
+- [🔄] Payment processing (Yoco integrated, Ozow/PayFast pending)
+- [🔄] Withdrawal system (UI and Repository logic implemented, approval flow pending)
+- [x] Transaction history (Implemented)
+- [x] Invoice generation (Implemented)
 - [ ] Dispute handling
 - [ ] Payment analytics
 

@@ -129,20 +129,97 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
-  Future<void> requestVerification() async {
+  Future<String> uploadVerificationDoc({required List<int> bytes, required String fileName}) async {
     final currentUser = _supabaseService.currentUser;
-    if (currentUser == null) {
-      throw AuthenticationException('No user logged in');
-    }
+    if (currentUser == null) throw AuthenticationException('No user logged in');
 
     try {
+      final path = 'verification/${currentUser.id}/$fileName';
+      return await _supabaseService.uploadFile(
+        bucket: 'verification-docs',
+        path: path,
+        bytes: bytes,
+      );
+    } catch (e) {
+      throw ServerException('Failed to upload verification document: $e');
+    }
+  }
+
+  @override
+  Future<void> submitVerification({
+    required String idType,
+    required String idFrontUrl,
+    String? idBackUrl,
+    String? selfieUrl,
+  }) async {
+    final currentUser = _supabaseService.currentUser;
+    if (currentUser == null) throw AuthenticationException('No user logged in');
+
+    try {
+      // In a real app, we'd save this to a 'verification_requests' table
+      // For this MVP, we'll just update the user's metadata or a simple flag
       await _supabaseService.update(
         table: 'users',
         id: currentUser.id,
-        data: {'is_verified': true},
+        data: {
+          'is_verified': false, // Still false until admin approves
+          'verification_status': 'pending',
+          'verification_metadata': {
+            'id_type': idType,
+            'id_front_url': idFrontUrl,
+            'id_back_url': idBackUrl,
+            'selfie_url': selfieUrl,
+            'submitted_at': DateTime.now().toIso8601String(),
+          }
+        },
       );
     } catch (e) {
-      throw ServerException('Failed to request verification: $e');
+      throw ServerException('Failed to submit verification: $e');
+    }
+  }
+
+  @override
+  Future<void> reportUser({
+    required String targetUserId,
+    required String reason,
+    String? description,
+  }) async {
+    final currentUser = _supabaseService.currentUser;
+    if (currentUser == null) throw AuthenticationException('No user logged in');
+
+    try {
+      await _supabaseService.insert(
+        table: 'user_reports',
+        data: {
+          'reporter_id': currentUser.id,
+          'target_id': targetUserId,
+          'reason': reason,
+          'description': description,
+          'status': 'pending',
+          'created_at': DateTime.now().toIso8601String(),
+        },
+      );
+    } catch (e) {
+      throw ServerException('Failed to submit report: $e');
+    }
+  }
+
+  @override
+  Future<void> blockUser({required String targetUserId}) async {
+    final currentUser = _supabaseService.currentUser;
+    if (currentUser == null) throw AuthenticationException('No user logged in');
+
+    try {
+      await _supabaseService.insert(
+        table: 'user_blocks',
+        data: {
+          'blocker_id': currentUser.id,
+          'blocked_id': targetUserId,
+          'created_at': DateTime.now().toIso8601String(),
+        },
+      );
+    } catch (e) {
+      throw ServerException('Failed to block user: $e');
     }
   }
 }

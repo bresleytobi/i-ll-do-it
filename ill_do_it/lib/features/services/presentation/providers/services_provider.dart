@@ -9,6 +9,12 @@ final myServicesProvider = FutureProvider<List<Service>>((ref) async {
   return serviceRepository.getMyServices();
 });
 
+/// Provider for a single service by ID
+final serviceProvider = FutureProvider.family<Service, String>((ref, id) async {
+  final serviceRepository = ref.watch(serviceRepositoryProvider);
+  return serviceRepository.getServiceById(serviceId: id);
+});
+
 /// State for Service operations
 class ServiceState {
   final bool isLoading;

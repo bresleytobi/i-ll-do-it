@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/job.dart';
+import '../models/job_application.dart';
 import '../services/supabase_service.dart';
 import '../errors/app_exceptions.dart';
 import 'abstract_repositories.dart';
@@ -145,6 +146,76 @@ class JobRepositoryImpl implements JobRepository {
       return results.map((e) => Job.fromJson(e)).toList();
     } catch (e) {
       throw ServerException('Failed to fetch your jobs: $e');
+    }
+  }
+
+  @override
+  Future<JobApplication> applyForJob({
+    required String jobId,
+    String? coverLetter,
+    double? bidAmount,
+  }) async {
+    final currentUser = _supabaseService.currentUser;
+    if (currentUser == null) throw AuthenticationException('No user logged in');
+
+    try {
+      final response = await _supabaseService.insert(
+        table: 'job_applications',
+        data: {
+          'job_id': jobId,
+          'applicant_id': currentUser.id,
+          'cover_letter': coverLetter,
+          'bid_amount': bidAmount,
+          'status': 'pending',
+        },
+      );
+      return JobApplication.fromJson(response);
+    } catch (e) {
+      throw ServerException('Failed to apply for job: $e');
+    }
+  }
+
+  @override
+  Future<List<JobApplication>> getJobApplications({required String jobId}) async {
+    try {
+      final results = await _supabaseService.query(
+        table: 'job_applications',
+        filters: {'job_id': jobId},
+      );
+      return results.map((e) => JobApplication.fromJson(e)).toList();
+    } catch (e) {
+      throw ServerException('Failed to fetch applications: $e');
+    }
+  }
+
+  @override
+  Future<List<JobApplication>> getMyApplications() async {
+    final currentUser = _supabaseService.currentUser;
+    if (currentUser == null) throw AuthenticationException('No user logged in');
+
+    try {
+      final results = await _supabaseService.query(
+        table: 'job_applications',
+        filters: {'applicant_id': currentUser.id},
+      );
+      return results.map((e) => JobApplication.fromJson(e)).toList();
+    } catch (e) {
+      throw ServerException('Failed to fetch your applications: $e');
+    }
+  }
+
+  @override
+  Future<void> updateApplicationStatus({
+    required String applicationId,
+    required ApplicationStatus status,
+  }) async {
+    try {
+      await _supabaseService.client
+          .from('job_applications')
+          .update({'status': status.name, 'updated_at': DateTime.now().toIso8601String()})
+          .eq('id', applicationId);
+    } catch (e) {
+      throw ServerException('Failed to update application status: $e');
     }
   }
 }
