@@ -24,8 +24,9 @@
 - [x] User profile updates logic
 
 ### In Progress 🔄
-- [🔄] Yoco payment integration
+- [🔄] Yoco payment integration (Staged/Testing)
 - [ ] Push notifications
+- [ ] Maps integration
 
 ### Not Started ⏳
 - [ ] Analytics
@@ -79,9 +80,9 @@
 - [ ] Selfie verification (liveness detection)
 - [ ] Verified badge system
 - [ ] Scam reporting
-- [ ] User blocking/reporting
-- [ ] Dispute resolution system
-- [ ] Transaction escrow
+- [x] User blocking/reporting (Implemented)
+- [x] Dispute resolution system (Implemented)
+- [x] Transaction escrow (Implemented)
 - [ ] Milestone-based payments
 - [ ] Fraud detection
 
@@ -90,12 +91,14 @@
 ## Phase 3: Payments & Wallet (Weeks 13-16)
 
 ### Features
-- [🔄] Wallet system (UI implemented, logic in progress)
+- [x] Wallet system (Implemented)
 - [🔄] Payment processing (Yoco integrated, Ozow/PayFast pending)
 - [🔄] Withdrawal system (UI and Repository logic implemented, approval flow pending)
 - [x] Transaction history (Implemented)
 - [x] Invoice generation (Implemented)
-- [ ] Dispute handling
+- [x] Dispute handling (Implemented)
+- [x] Real-time Messaging (Implemented)
+- [x] Image sharing in chat (Implemented)
 - [ ] Payment analytics
 
 ---

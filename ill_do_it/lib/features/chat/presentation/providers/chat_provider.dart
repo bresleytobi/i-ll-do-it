@@ -8,8 +8,8 @@ final chatMessagesProvider = StreamProvider.family<List<Message>, String>((ref, 
   return messageRepository.watchMessages(otherUserId: otherUserId);
 });
 
-/// Provider for all active conversations
-final conversationsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+/// Provider for all active conversations (Real-time)
+final conversationsProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   final messageRepository = ref.watch(messageRepositoryProvider);
-  return messageRepository.getConversations();
+  return messageRepository.watchConversations();
 });

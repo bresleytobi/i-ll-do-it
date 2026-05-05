@@ -94,6 +94,28 @@ class TransactionRepositoryImpl implements TransactionRepository {
   }
 
   @override
+  Future<double> getTotalEarned() async {
+    final currentUser = _supabaseService.currentUser;
+    if (currentUser == null) throw AuthenticationException('No user logged in');
+
+    try {
+      final transactions = await getTransactionHistory();
+      double earned = 0.0;
+
+      for (var tx in transactions) {
+        if (tx.status == 'completed' && tx.receiverId == currentUser.id) {
+          if (tx.type == 'payment' || tx.type == 'escrow_release' || tx.type == 'deposit') {
+            earned += tx.amount;
+          }
+        }
+      }
+      return earned;
+    } catch (e) {
+      throw ServerException('Failed to calculate total earned: $e');
+    }
+  }
+
+  @override
   Future<Transaction> depositFunds({
     required double amount,
     required String reference,

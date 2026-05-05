@@ -39,6 +39,26 @@ class MessageRepositoryImpl implements MessageRepository {
   }
 
   @override
+  Future<String> uploadChatImage({required List<int> bytes}) async {
+    final currentUser = _supabaseService.currentUser;
+    if (currentUser == null) {
+      throw AuthenticationException('No user logged in');
+    }
+
+    try {
+      final fileName = 'chat/${currentUser.id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      
+      return await _supabaseService.uploadFile(
+        bucket: 'chat-images',
+        path: fileName,
+        bytes: bytes,
+      );
+    } catch (e) {
+      throw ServerException('Failed to upload chat image: $e');
+    }
+  }
+
+  @override
   Future<List<Message>> getChatMessages({required String otherUserId}) async {
     final currentUser = _supabaseService.currentUser;
     if (currentUser == null) {
@@ -131,6 +151,41 @@ class MessageRepositoryImpl implements MessageRepository {
                   (row['sender_id'] == otherUserId && row['receiver_id'] == currentUser.id))
               .map((e) => Message.fromJson(e))
               .toList();
+        });
+  }
+
+  @override
+  Stream<List<Map<String, dynamic>>> watchConversations() {
+    final currentUser = _supabaseService.currentUser;
+    if (currentUser == null) {
+      throw AuthenticationException('No user logged in');
+    }
+
+    // This is a simplified version of real-time conversations.
+    // We watch all messages involving the current user, then fetch profiles for unique user IDs.
+    return _supabaseService.client
+        .from('messages')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false)
+        .asyncMap((event) async {
+          final userIds = <String>{};
+          for (var row in event) {
+            if (row['sender_id'] == currentUser.id) {
+              userIds.add(row['receiver_id'] as String);
+            } else if (row['receiver_id'] == currentUser.id) {
+              userIds.add(row['sender_id'] as String);
+            }
+          }
+
+          if (userIds.isEmpty) return [];
+
+          // Fetch user details for these IDs
+          final users = await _supabaseService.client
+              .from('users')
+              .select('id, display_name, avatar_url')
+              .in_('id', userIds.toList());
+
+          return (users as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
         });
   }
 }

@@ -6,6 +6,7 @@ import '../models/message.dart';
 import '../models/order.dart';
 import '../models/job_application.dart';
 import '../models/withdrawal_request.dart';
+import '../models/dispute.dart';
 
 /// Abstract repository for user operations
 abstract class UserRepository {
@@ -30,6 +31,9 @@ abstract class UserRepository {
   /// Get user reviews
   Future<List<Map<String, dynamic>>> getUserReviews({required String userId});
 
+  /// Get users by type (e.g., job_seeker)
+  Future<List<User>> getUsers({String? userType, int? limit});
+
   /// Upload a verification document
   Future<String> uploadVerificationDoc({required List<int> bytes, required String fileName});
 
@@ -50,9 +54,13 @@ abstract class UserRepository {
 
   /// Block a user
   Future<void> blockUser({required String targetUserId});
-}
 
-/// Abstract repository for service operations
+  /// Ensure user profile exists in public.users table
+  Future<void> ensureProfileExists();
+  }
+
+  /// Abstract repository for services
+
 abstract class ServiceRepository {
   /// Create a new service
   Future<Service> createService({
@@ -167,6 +175,13 @@ abstract class OrderRepository {
     required String orderId,
     required OrderStatus status,
   });
+
+  /// Raise a dispute for an order
+  Future<void> raiseDispute({
+    required String orderId,
+    required String reason,
+    required String description,
+  });
 }
 
 /// Abstract repository for transaction operations
@@ -179,6 +194,9 @@ abstract class TransactionRepository {
 
   /// Get escrow balance
   Future<double> getEscrowBalance();
+
+  /// Get total earned amount
+  Future<double> getTotalEarned();
 
   /// Deposit funds into wallet
   Future<Transaction> depositFunds({
@@ -221,6 +239,18 @@ abstract class TransactionRepository {
   });
 }
 
+/// Abstract repository for dispute operations
+abstract class DisputeRepository {
+  /// Get dispute by order ID
+  Future<Dispute?> getDisputeByOrderId({required String orderId});
+
+  /// Get my raised disputes
+  Future<List<Dispute>> getMyDisputes();
+
+  /// Cancel a dispute
+  Future<void> cancelDispute({required String disputeId});
+}
+
 /// Abstract repository for message operations
 abstract class MessageRepository {
   /// Send a message
@@ -229,6 +259,9 @@ abstract class MessageRepository {
     required String content,
     String? imageUrl,
   });
+
+  /// Upload chat image
+  Future<String> uploadChatImage({required List<int> bytes});
 
   /// Get messages between two users
   Future<List<Message>> getChatMessages({required String otherUserId});
@@ -241,6 +274,9 @@ abstract class MessageRepository {
 
   /// Stream of new messages for a conversation
   Stream<List<Message>> watchMessages({required String otherUserId});
+
+  /// Stream of all conversations
+  Stream<List<Map<String, dynamic>>> watchConversations();
 }
 
 /// Abstract repository for review operations

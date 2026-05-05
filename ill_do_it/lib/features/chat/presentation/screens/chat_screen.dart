@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/models/message.dart';
 import '../../../../core/repositories/message_repository_impl.dart';
@@ -70,6 +71,35 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to send: $e')),
         );
+      }
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+    );
+
+    if (pickedFile != null) {
+      try {
+        final bytes = await pickedFile.readAsBytes();
+        final imageUrl = await ref.read(messageRepositoryProvider).uploadChatImage(
+              bytes: bytes.toList(),
+            );
+        
+        await ref.read(messageRepositoryProvider).sendMessage(
+              receiverId: widget.otherUserId,
+              content: '[Image]',
+              imageUrl: imageUrl,
+            );
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to upload image: $e')),
+          );
+        }
       }
     }
   }
@@ -192,6 +222,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
+            if (message.imageUrl != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    message.imageUrl!,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return const SizedBox(
+                        width: 200,
+                        height: 200,
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    },
+                  ),
+                ),
+              ),
             Text(
               message.content,
               style: TextStyle(
@@ -225,9 +274,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           children: [
             IconButton(
               icon: const Icon(Icons.image_outlined, color: AppColors.textSecondary),
-              onPressed: () {
-                // TODO: Upload image
-              },
+              onPressed: _pickImage,
             ),
             Expanded(
               child: TextField(

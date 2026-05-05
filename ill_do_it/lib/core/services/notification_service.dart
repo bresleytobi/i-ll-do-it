@@ -1,22 +1,25 @@
 import 'dart:developer';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../router/app_router.dart';
 import 'supabase_service.dart';
 
 /// Provider for NotificationService
 final notificationServiceProvider = Provider<NotificationService>((ref) {
   final supabaseService = ref.watch(supabaseServiceProvider);
-  return NotificationService(supabaseService);
+  return NotificationService(supabaseService, ref);
 });
 
 /// Service for handling push notifications
 class NotificationService {
   final SupabaseService _supabaseService;
+  final Ref _ref;
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
 
-  NotificationService(this._supabaseService);
+  NotificationService(this._supabaseService, this._ref);
 
   /// Initialize notifications
   Future<void> initialize() async {
@@ -44,15 +47,18 @@ class NotificationService {
       iOS: initializationSettingsIOS,
     );
 
-    await _localNotifications.initialize(initializationSettings);
+    await _localNotifications.initialize(
+      initializationSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        _handleNotificationTap(response.payload);
+      },
+    );
 
     // 3. Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       log('Got a message whilst in the foreground!');
-      log('Message data: ${message.data}');
-
+      
       if (message.notification != null) {
-        log('Message also contained a notification: ${message.notification}');
         _showLocalNotification(message);
       }
     });
@@ -60,11 +66,25 @@ class NotificationService {
     // 4. Handle background messages (app opened from notification)
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       log('A new onMessageOpenedApp event was published!');
-      // TODO: Handle navigation based on message data
+      _handleNotificationTap(message.data.toString());
     });
+    
+    // Check if app was opened from a terminated state via notification
+    RemoteMessage? initialMessage = await _fcm.getInitialMessage();
+    if (initialMessage != null) {
+      _handleNotificationTap(initialMessage.data.toString());
+    }
 
     // 5. Get and save the token
     await updateToken();
+  }
+
+  void _handleNotificationTap(String? payload) {
+    if (payload == null) return;
+    log('Notification payload: $payload');
+    
+    // TODO: Parse payload and navigate
+    // Example: if (payload.contains('chat')) { goRouter.push('/chat/123'); }
   }
 
   /// Update the FCM token in Supabase

@@ -31,42 +31,84 @@ class VerificationCenterScreen extends ConsumerWidget {
                   gradient: AppColors.primaryGradient,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      user.verificationStatus == 'pending' ? Icons.hourglass_empty : Icons.shield_outlined, 
-                      size: 48, 
-                      color: AppColors.darkBg
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            user.verificationStatus == 'pending' ? 'Review in Progress' : 'Trust is Currency',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.darkBg,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            user.isVerified 
-                              ? 'Your account is fully verified. You are a trusted member of the community!'
+                    Row(
+                      children: [
+                        Icon(
+                          user.isVerified
+                              ? Icons.verified
                               : user.verificationStatus == 'pending'
-                                ? 'We are currently reviewing your documents. This usually takes 24-48 hours.'
-                                : 'Verified users get 3x more jobs and better visibility in the marketplace.',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.darkBg,
-                              height: 1.4,
-                            ),
+                                  ? Icons.hourglass_empty
+                                  : user.verificationStatus == 'rejected'
+                                      ? Icons.report_problem
+                                      : Icons.shield_outlined,
+                          size: 48,
+                          color: AppColors.darkBg,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                user.isVerified
+                                    ? 'Verified Identity'
+                                    : user.verificationStatus == 'pending'
+                                        ? 'Review in Progress'
+                                        : user.verificationStatus == 'rejected'
+                                            ? 'Action Required'
+                                            : 'Start Verification',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.darkBg,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                user.isVerified
+                                    ? 'Your account is fully verified and ready for trusted work.'
+                                    : user.verificationStatus == 'pending'
+                                        ? 'We are reviewing your documents. This usually takes 24-48 hours.'
+                                        : user.verificationStatus == 'rejected'
+                                            ? 'Your previous submission was not approved. Resubmit clearer documents to continue.'
+                                            : 'Complete identity verification to unlock higher-value jobs and faster payouts.',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.darkBg,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
+                    if (!user.isVerified) ...[
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: user.verificationStatus == 'pending'
+                            ? OutlinedButton(
+                                onPressed: null,
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.darkBg,
+                                  side: const BorderSide(color: AppColors.darkBg),
+                                ),
+                                child: const Text('Waiting for review'),
+                              )
+                            : ElevatedButton(
+                                onPressed: () => context.push(AppRoutes.idVerification),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.darkBg,
+                                  foregroundColor: AppColors.primary,
+                                ),
+                                child: Text(user.verificationStatus == 'rejected' ? 'Resubmit documents' : 'Submit verification'),
+                              ),
+                      ),
+                    ],
                   ],
                 ),
               ),

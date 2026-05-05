@@ -7,12 +7,14 @@ part 'user.g.dart';
 class User with _$User {
   const factory User({
     required String id,
-    required String email,
+    String? email,
     String? phone,
     @JsonKey(name: 'display_name') required String displayName,
     String? bio,
     @JsonKey(name: 'avatar_url') String? avatarUrl,
     String? location,
+    @JsonKey(name: 'user_type') @Default('viewer') String userType,
+    @JsonKey(name: 'is_onboarding_completed') @Default(false) bool isOnboardingCompleted,
     @JsonKey(name: 'push_token') String? pushToken,
     @Default([]) List<String> skills,
     @Default(0.0) double rating,

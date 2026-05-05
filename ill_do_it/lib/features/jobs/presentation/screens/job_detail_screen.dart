@@ -195,40 +195,44 @@ class JobDetailScreen extends ConsumerWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: canApply
-                            ? () async {
-                                final result = await showDialog<Map<String, dynamic>>(
-                                  context: context,
-                                  builder: (context) => _ApplyDialog(job: job),
-                                );
+                        onPressed: isOwner
+                            ? () => context.push(
+                                  AppRoutes.manageApplications.replaceFirst(':jobId', job.id),
+                                )
+                            : canApply
+                                ? () async {
+                                    final result = await showDialog<Map<String, dynamic>>(
+                                      context: context,
+                                      builder: (context) => _ApplyDialog(job: job),
+                                    );
 
-                                if (result != null) {
-                                  try {
-                                    await ref.read(jobApplicationNotifierProvider.notifier).applyForJob(
-                                          jobId: job.id,
-                                          coverLetter: result['cover_letter'],
-                                          bidAmount: result['bid_amount'],
-                                        );
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Application submitted successfully.')),
-                                      );
-                                    }
-                                  } catch (e) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Failed to apply: $e')),
-                                      );
+                                    if (result != null) {
+                                      try {
+                                        await ref.read(jobApplicationNotifierProvider.notifier).applyForJob(
+                                              jobId: job.id,
+                                              coverLetter: result['cover_letter'],
+                                              bidAmount: result['bid_amount'],
+                                            );
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('Application submitted successfully.')),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text('Failed to apply: $e')),
+                                          );
+                                        }
+                                      }
                                     }
                                   }
-                                }
-                              }
-                            : null,
+                                : null,
                         child: Text(
-                          canApply
-                              ? 'Apply Now'
-                              : isOwner
-                                  ? 'View Your Job'
+                          isOwner
+                              ? 'Manage Applications'
+                              : canApply
+                                  ? 'Apply Now'
                                   : job.status == 'applied'
                                       ? 'Application Sent'
                                       : 'Job ${job.status.capitalize()}',

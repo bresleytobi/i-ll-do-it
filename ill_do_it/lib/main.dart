@@ -16,7 +16,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  log("Handling a background message: ${message.messageId}");
+  log('Handling a background message: ${message.messageId}');
 }
 
 void main() async {
@@ -38,15 +38,21 @@ void main() async {
     anonKey: AppConfig.supabaseAnonKey,
   );
 
+  final container = ProviderContainer();
+
+  // Initialize Notifications
+  await container.read(notificationServiceProvider).initialize();
+
   runApp(
-    const ProviderScope(
-      child: IllDoItApp(),
+    UncontrolledProviderScope(
+      container: container,
+      child: const IllDoItApp(),
     ),
   );
 }
 
 class IllDoItApp extends ConsumerStatefulWidget {
-  const IllDoItApp({Key? key}) : super(key: key);
+  const IllDoItApp({super.key});
 
   @override
   ConsumerState<IllDoItApp> createState() => _IllDoItAppState();
@@ -71,7 +77,7 @@ class _IllDoItAppState extends ConsumerState<IllDoItApp> {
     final goRouter = ref.watch(goRouterProvider);
 
     return MaterialApp.router(
-      title: 'I\'ll Do It',
+      title: "I'll Do It",
       debugShowCheckedModeBanner: false,
       routerConfig: goRouter,
       theme: AppTheme.darkTheme,

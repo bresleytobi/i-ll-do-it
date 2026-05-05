@@ -31,8 +31,8 @@ class ServiceRepositoryImpl implements ServiceRepository {
     }
 
     try {
-      final fileName = 'service_${currentUser.id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final path = 'services/$fileName';
+      final fileName = 'service_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final path = '${currentUser.id}/$fileName';
       
       return await _supabaseService.uploadFile(
         bucket: 'service-images',

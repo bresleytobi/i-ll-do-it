@@ -15,6 +15,12 @@ final escrowBalanceProvider = FutureProvider<double>((ref) async {
   return transactionRepository.getEscrowBalance();
 });
 
+/// Provider for total earned amount
+final totalEarnedProvider = FutureProvider<double>((ref) async {
+  final transactionRepository = ref.watch(transactionRepositoryProvider);
+  return transactionRepository.getTotalEarned();
+});
+
 /// Provider for transaction history
 final transactionHistoryProvider = FutureProvider<List<Transaction>>((ref) async {
   final transactionRepository = ref.watch(transactionRepositoryProvider);

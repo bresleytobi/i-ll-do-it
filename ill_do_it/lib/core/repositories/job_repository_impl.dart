@@ -14,6 +14,25 @@ class JobRepositoryImpl implements JobRepository {
   @override
   Future<Job> createJob({required Map<String, dynamic> data}) async {
     try {
+      // Ensure user profile exists to avoid FK violation (client_id references users)
+      final currentUser = _supabaseService.currentUser;
+      if (currentUser != null) {
+        final profile = await _supabaseService.query(
+          table: 'users',
+          filters: {'id': currentUser.id},
+        );
+        if (profile.isEmpty) {
+          await _supabaseService.insert(
+            table: 'users',
+            data: {
+              'id': currentUser.id,
+              'email': currentUser.email,
+              'display_name': currentUser.userMetadata?['full_name'] ?? currentUser.email?.split('@').first ?? 'User',
+            },
+          );
+        }
+      }
+
       final response = await _supabaseService.insert(
         table: 'jobs',
         data: data,
@@ -32,8 +51,8 @@ class JobRepositoryImpl implements JobRepository {
     }
 
     try {
-      final fileName = 'job_${currentUser.id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final path = 'jobs/$fileName';
+      final fileName = 'job_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final path = '${currentUser.id}/$fileName';
       
       return await _supabaseService.uploadFile(
         bucket: 'job-images',
@@ -210,9 +229,84 @@ class JobRepositoryImpl implements JobRepository {
     required ApplicationStatus status,
   }) async {
     try {
+      if (status == ApplicationStatus.accepted) {
+        // 1. Get Application details
+        final appResults = await _supabaseService.query(
+          table: 'job_applications',
+          filters: {'id': applicationId},
+        );
+        if (appResults.isEmpty) throw ServerException('Application not found');
+        final app = JobApplication.fromJson(appResults.first);
+
+        // 2. Get Job details
+        final jobResults = await _supabaseService.query(
+          table: 'jobs',
+          filters: {'id': app.jobId},
+        );
+        if (jobResults.isEmpty) throw ServerException('Job not found');
+        final job = Job.fromJson(jobResults.first);
+
+        // 3. Check client balance (Simplified for MVP, using TransactionRepository logic would be better but keeping it here for speed)
+        // In a real app, this should be a database-side RPC or transaction
+        final bidAmount = app.bidAmount ?? job.budget;
+        
+        // Let's at least check the 'balance' column we added to users
+        final clientResults = await _supabaseService.query(
+          table: 'users',
+          filters: {'id': job.clientId},
+        );
+        if (clientResults.isEmpty) throw ServerException('Client not found');
+        final clientBalance = (clientResults.first['balance'] as num?)?.toDouble() ?? 0.0;
+
+        if (clientBalance < bidAmount) {
+          throw ServerException('Insufficient funds in wallet to hire. Please top up your wallet.');
+        }
+
+        // 4. Create an Order for the job
+        final orderResponse = await _supabaseService.insert(
+          table: 'orders',
+          data: {
+            'buyer_id': job.clientId,
+            'seller_id': app.applicantId,
+            'job_id': job.id,
+            'amount': app.bidAmount ?? job.budget,
+            'status': 'in_progress',
+            'created_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          },
+        );
+        final orderId = orderResponse['id'];
+
+        // 4. Create Escrow Transaction
+        await _supabaseService.insert(
+          table: 'transactions',
+          data: {
+            'sender_id': job.clientId,
+            'receiver_id': app.applicantId,
+            'amount': app.bidAmount ?? job.budget,
+            'type': 'escrow',
+            'status': 'pending',
+            'order_id': orderId,
+            'reference': 'Escrow for job: ${job.title}',
+            'created_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          },
+        );
+
+        // 5. Update Job status to in_progress
+        await _supabaseService.update(
+          table: 'jobs',
+          id: job.id,
+          data: {'status': 'in_progress', 'updated_at': DateTime.now().toIso8601String()},
+        );
+      }
+
       await _supabaseService.client
           .from('job_applications')
-          .update({'status': status.name, 'updated_at': DateTime.now().toIso8601String()})
+          .update({
+            'status': status.name, 
+            'updated_at': DateTime.now().toIso8601String()
+          })
           .eq('id', applicationId);
     } catch (e) {
       throw ServerException('Failed to update application status: $e');

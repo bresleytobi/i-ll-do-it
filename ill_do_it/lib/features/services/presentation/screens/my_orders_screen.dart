@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/models/order.dart';
+import '../../../../core/repositories/order_repository_impl.dart';
 import '../../../../core/services/invoice_service.dart';
 import '../providers/orders_provider.dart';
 import 'package:intl/intl.dart';
@@ -200,11 +201,73 @@ class _OrderTile extends ConsumerWidget {
                     side: const BorderSide(color: AppColors.primary),
                   ),
                 ),
+              if (order.status != OrderStatus.pending && order.status != OrderStatus.disputed)
+                TextButton(
+                  onPressed: () => _showDisputeDialog(context, ref, order),
+                  child: const Text('Dispute', style: TextStyle(color: Colors.redAccent, fontSize: 12)),
+                ),
             ],
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _showDisputeDialog(BuildContext context, WidgetRef ref, Order order) async {
+    final reasonController = TextEditingController();
+    final descController = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Raise a Dispute', style: TextStyle(color: AppColors.textPrimary)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: reasonController,
+              style: const TextStyle(color: AppColors.textPrimary),
+              decoration: const InputDecoration(labelText: 'Reason (e.g., Service not delivered)'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: descController,
+              maxLines: 3,
+              style: const TextStyle(color: AppColors.textPrimary),
+              decoration: const InputDecoration(labelText: 'Detailed Description'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text('Raise Dispute'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ref.read(orderRepositoryProvider).raiseDispute(
+          orderId: order.id,
+          reason: reasonController.text.trim(),
+          description: descController.text.trim(),
+        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Dispute raised successfully.')));
+          ref.invalidate(myPurchasesProvider);
+          ref.invalidate(mySalesProvider);
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
+        }
+      }
+    }
   }
 
   Widget _buildStatusBadge(OrderStatus status) {
@@ -224,6 +287,9 @@ class _OrderTile extends ConsumerWidget {
         break;
       case OrderStatus.cancelled:
         color = Colors.red;
+        break;
+      case OrderStatus.disputed:
+        color = Colors.redAccent;
         break;
     }
 

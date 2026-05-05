@@ -78,14 +78,28 @@ class HomeScreen extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: () => context.go(AppRoutes.explore),
+                            onPressed: () {
+                              final profile = ref.read(profileProvider).valueOrNull;
+                              if (profile?.userType == 'viewer') {
+                                context.push(AppRoutes.onboarding);
+                              } else {
+                                context.go(AppRoutes.explore);
+                              }
+                            },
                             child: const Text('Find Work'),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () => context.push(AppRoutes.jobs),
+                            onPressed: () {
+                              final profile = ref.read(profileProvider).valueOrNull;
+                              if (profile?.userType == 'viewer') {
+                                context.push(AppRoutes.onboarding);
+                              } else {
+                                context.push(AppRoutes.createJob);
+                              }
+                            },
                             child: const Text('Post Job'),
                           ),
                         ),
@@ -164,11 +178,119 @@ class HomeScreen extends ConsumerWidget {
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (err, _) => Center(child: Text('Error: $err')),
               ),
+              const SizedBox(height: 24),
+
+              // Recommended Workers
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Recommended Workers',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => context.go(AppRoutes.explore),
+                    child: const Text('See All'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ref.watch(recommendedWorkersProvider).when(
+                data: (workers) => workers.isEmpty
+                    ? _buildEmptyState('No workers found matching your needs.')
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: workers.length,
+                        itemBuilder: (context, index) {
+                          return _buildWorkerCard(context, workers[index]);
+                        },
+                      ),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, _) => Center(child: Text('Error: $err')),
+              ),
+              const SizedBox(height: 24),
             ],
           ),
         ),
       ),
       bottomNavigationBar: const MainBottomNavBar(currentIndex: 0),
+    );
+  }
+
+  Widget _buildWorkerCard(BuildContext context, User worker) {
+    return GestureDetector(
+      onTap: () {
+        // Navigate to worker profile
+        // context.push(AppRoutes.profile, extra: worker.id);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.borderColor),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 25,
+              backgroundImage: worker.avatarUrl != null
+                  ? NetworkImage(worker.avatarUrl!)
+                  : null,
+              child: worker.avatarUrl == null
+                  ? const Icon(Icons.person)
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    worker.displayName,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    worker.skills.take(3).join(', '),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.star, size: 14, color: AppColors.primary),
+                      const SizedBox(width: 4),
+                      Text(
+                        worker.rating.toStringAsFixed(1),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.textTertiary),
+          ],
+        ),
+      ),
     );
   }
 

@@ -61,8 +61,8 @@ class UserRepositoryImpl implements UserRepository {
     }
 
     try {
-      final fileName = 'avatar_${currentUser.id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final path = 'avatars/$fileName';
+      final fileName = 'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final path = '${currentUser.id}/$fileName';
       
       final url = await _supabaseService.uploadFile(
         bucket: 'avatars',
@@ -113,6 +113,25 @@ class UserRepositoryImpl implements UserRepository {
       return results.map((e) => User.fromJson(e)).toList();
     } catch (e) {
       throw ServerException('Search failed: $e');
+    }
+  }
+
+  @override
+  Future<List<User>> getUsers({String? userType, int? limit}) async {
+    try {
+      final filters = userType != null ? {'user_type': userType} : null;
+      final results = await _supabaseService.query(
+        table: 'users',
+        filters: filters,
+      );
+      
+      final users = results.map((e) => User.fromJson(e)).toList();
+      if (limit != null && users.length > limit) {
+        return users.sublist(0, limit);
+      }
+      return users;
+    } catch (e) {
+      throw ServerException('Failed to fetch users: $e');
     }
   }
 
@@ -220,6 +239,36 @@ class UserRepositoryImpl implements UserRepository {
       );
     } catch (e) {
       throw ServerException('Failed to block user: $e');
+    }
+  }
+
+  @override
+  Future<void> ensureProfileExists() async {
+    final currentUser = _supabaseService.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      final data = await _supabaseService.query(
+        table: 'users',
+        filters: {'id': currentUser.id},
+      );
+
+      if (data.isEmpty) {
+        await _supabaseService.insert(
+          table: 'users',
+          data: {
+            'id': currentUser.id,
+            'email': currentUser.email,
+            'display_name': currentUser.userMetadata?['full_name'] ?? currentUser.email?.split('@').first ?? 'User',
+            'user_type': currentUser.userMetadata?['user_type'] ?? 'viewer',
+            'created_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          },
+        );
+      }
+    } catch (e) {
+      // Log error but don't fail, as it might be handled by trigger now
+      print('Ensure profile exists error: $e');
     }
   }
 }

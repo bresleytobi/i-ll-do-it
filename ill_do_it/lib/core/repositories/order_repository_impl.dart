@@ -118,6 +118,35 @@ class OrderRepositoryImpl implements OrderRepository {
       throw ServerException('Failed to update order status: $e');
     }
   }
+
+  @override
+  Future<void> raiseDispute({
+    required String orderId,
+    required String reason,
+    required String description,
+  }) async {
+    final currentUser = _supabaseService.currentUser;
+    if (currentUser == null) throw AuthenticationException('No user logged in');
+
+    try {
+      // 1. Create the dispute entry
+      await _supabaseService.insert(
+        table: 'disputes',
+        data: {
+          'order_id': orderId,
+          'raised_by': currentUser.id,
+          'reason': reason,
+          'description': description,
+          'status': 'open',
+        },
+      );
+
+      // 2. Update order status to 'disputed'
+      await updateOrderStatus(orderId: orderId, status: OrderStatus.disputed);
+    } catch (e) {
+      throw ServerException('Failed to raise dispute: $e');
+    }
+  }
 }
 
 final orderRepositoryProvider = Provider<OrderRepository>((ref) {

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 import '../../../../core/services/supabase_service.dart';
 import '../../../../core/services/notification_service.dart';
+import '../../../../core/repositories/user_repository_impl.dart';
 
 /// State for authentication
 class AuthState {
@@ -38,7 +39,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier(this._supabaseService, this._ref) : super(AuthState(user: _supabaseService.currentUser)) {
     // Listen to auth state changes
     _supabaseService.authStateChanges.listen((event) {
-      state = state.copyWith(user: event.session?.user);
+      final user = event.session?.user;
+      state = state.copyWith(user: user);
+      
+      // If user just signed in or token refreshed, ensure profile exists
+      if (user != null && (event.event == supabase.AuthChangeEvent.signedIn || event.event == supabase.AuthChangeEvent.tokenRefreshed)) {
+        _ref.read(userRepositoryProvider).ensureProfileExists();
+      }
     });
   }
 
@@ -55,6 +62,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
         password: password,
         data: fullName != null ? {'full_name': fullName} : null,
       );
+      
+      // Ensure profile exists immediately
+      await _ref.read(userRepositoryProvider).ensureProfileExists();
       
       // Update push token
       await _ref.read(notificationServiceProvider).updateToken();
@@ -76,6 +86,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
         email: email,
         password: password,
       );
+      
+      // Ensure profile exists immediately
+      await _ref.read(userRepositoryProvider).ensureProfileExists();
       
       // Update push token
       await _ref.read(notificationServiceProvider).updateToken();

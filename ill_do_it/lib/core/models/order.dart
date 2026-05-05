@@ -9,7 +9,8 @@ enum OrderStatus {
   @JsonValue('in_progress')
   inProgress,
   completed,
-  cancelled
+  cancelled,
+  disputed
 }
 
 @freezed

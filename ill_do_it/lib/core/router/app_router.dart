@@ -15,6 +15,7 @@ import '../../features/chat/presentation/screens/conversations_screen.dart';
 import '../../features/chat/presentation/screens/chat_screen.dart';
 import '../../features/services/presentation/screens/my_orders_screen.dart';
 import '../../features/jobs/presentation/screens/my_applications_screen.dart';
+import '../../features/jobs/presentation/screens/manage_applications_screen.dart';
 
 import '../../features/services/presentation/screens/create_service_screen.dart';
 import '../../features/jobs/presentation/screens/create_job_screen.dart';
@@ -25,6 +26,7 @@ import '../../features/profile/presentation/screens/id_verification_screen.dart'
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/phone_login_screen.dart';
 import '../../features/auth/presentation/screens/otp_verification_screen.dart';
+import '../../features/auth/presentation/screens/onboarding_steps_screen.dart';
 
 import '../../features/services/presentation/screens/service_detail_screen.dart';
 
@@ -41,6 +43,7 @@ class AppRoutes {
   static const String forgotPassword = '/forgot-password';
   static const String phoneLogin = '/phone-login';
   static const String otpVerify = '/otp-verify';
+  static const String onboarding = '/onboarding';
   static const String home = '/home';
   static const String explore = '/explore';
   static const String services = '/services';
@@ -58,11 +61,13 @@ class AppRoutes {
   static const String chat = '/chat/:id';
   static const String myOrders = '/my-orders';
   static const String myApplications = '/my-applications';
+  static const String manageApplications = '/manage-applications/:jobId';
 }
 
 /// GoRouter provider for navigation
 final goRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
+  final profileAsync = ref.watch(profileProvider);
 
   return GoRouter(
     initialLocation: AppRoutes.splash,
@@ -76,6 +81,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       final isForgotPassword = state.matchedLocation == AppRoutes.forgotPassword;
       final isPhoneLogin = state.matchedLocation == AppRoutes.phoneLogin;
       final isOtpVerify = state.matchedLocation == AppRoutes.otpVerify;
+      final isOnboarding = state.matchedLocation == AppRoutes.onboarding;
       final isSplash = state.matchedLocation == AppRoutes.splash;
 
       if (isLoading) return null;
@@ -85,8 +91,22 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         return AppRoutes.login;
       }
 
-      if (isAuthenticated && (isLoggingIn || isSigningUp || isForgotPassword || isPhoneLogin || isOtpVerify || isSplash)) {
-        return AppRoutes.home;
+      if (isAuthenticated) {
+        // If authenticated but on auth screens, go home (which might redirect to onboarding)
+        if (isLoggingIn || isSigningUp || isForgotPassword || isPhoneLogin || isOtpVerify || isSplash) {
+          return AppRoutes.home;
+        }
+
+        // Check onboarding status (this is a bit tricky with FutureProvider)
+        // For now, we'll allow home but we should ideally check isOnboardingCompleted
+        // A better way is to use a synchronous provider for the profile if possible, 
+        // or just let the Onboarding screen handle it if the user landed there.
+        
+        // Let's try to get the profile synchronously if it's already loaded
+        final profile = profileAsync.valueOrNull;
+        if (profile != null && !profile.isOnboardingCompleted && !isOnboarding) {
+          return AppRoutes.onboarding;
+        }
       }
 
       return null;
@@ -121,6 +141,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           final phone = state.extra as String? ?? '';
           return OtpVerificationScreen(phoneNumber: phone);
         },
+      ),
+      GoRoute(
+        path: AppRoutes.onboarding,
+        builder: (context, state) => const OnboardingStepsScreen(),
       ),
 
       // Main App Routes
@@ -207,6 +231,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.myApplications,
         builder: (context, state) => const MyApplicationsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.manageApplications,
+        builder: (context, state) {
+          final jobId = state.pathParameters['jobId']!;
+          return ManageApplicationsScreen(jobId: jobId);
+        },
       ),
     ],
   );
