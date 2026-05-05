@@ -161,6 +161,14 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
 ```
 
+If you want to enable Yoco payments, add your Yoco secret key here as well:
+
+```
+YOCO_SECRET_KEY=your_yoco_secret_key
+```
+
+The app calls a Supabase Edge Function to create the Yoco checkout session, so the secret key stays on the backend.
+
 ### 6. Dependencies
 
 ```bash
