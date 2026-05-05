@@ -5,8 +5,10 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/models/service.dart';
 import '../../../../core/models/job.dart';
+import '../../../../core/models/user.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../../../../core/widgets/main_bottom_nav_bar.dart';
+import 'package:ill_do_it/features/profile/presentation/providers/profile_provider.dart';
 import '../providers/home_provider.dart';
 
 class HomeScreen extends ConsumerWidget {

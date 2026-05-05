@@ -50,7 +50,7 @@ class InvoiceService {
                     children: [
                       pw.Text('BILL TO:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                       pw.Text(buyer.displayName),
-                      pw.Text(buyer.email),
+                      pw.Text(buyer.email ?? ''),
                     ],
                   ),
                   pw.Column(
@@ -58,7 +58,7 @@ class InvoiceService {
                     children: [
                       pw.Text('FROM:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                       pw.Text(seller.displayName),
-                      pw.Text(seller.email),
+                      pw.Text(seller.email ?? ''),
                     ],
                   ),
                 ],

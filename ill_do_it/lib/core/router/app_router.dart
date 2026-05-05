@@ -22,6 +22,7 @@ import '../../features/jobs/presentation/screens/create_job_screen.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/profile/presentation/screens/verification_center_screen.dart';
 import '../../features/profile/presentation/screens/id_verification_screen.dart';
+import '../../features/profile/presentation/providers/profile_provider.dart';
 
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/phone_login_screen.dart';

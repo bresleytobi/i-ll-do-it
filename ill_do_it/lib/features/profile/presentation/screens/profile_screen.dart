@@ -68,7 +68,7 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      user.email,
+                      user.email ?? '',
                       style: const TextStyle(
                         fontSize: 14,
                         color: AppColors.textSecondary,

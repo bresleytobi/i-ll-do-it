@@ -200,9 +200,9 @@ class ManageApplicationsScreen extends ConsumerWidget {
                     ),
                     child: Center(
                       child: Text(
-                        application.status.toUpperCase(),
+                        application.status.name.toUpperCase(),
                         style: TextStyle(
-                          color: application.status == 'accepted' ? AppColors.success : AppColors.error,
+                          color: application.status == ApplicationStatus.accepted ? AppColors.success : AppColors.error,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
