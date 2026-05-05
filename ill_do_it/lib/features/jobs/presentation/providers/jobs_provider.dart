@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/models/job.dart';
+import '../../../../core/repositories/abstract_repositories.dart';
 import '../../../../core/repositories/job_repository_impl.dart';
 
 /// Provider for all open jobs
@@ -61,6 +62,15 @@ class JobNotifier extends StateNotifier<JobState> {
       _ref.invalidate(openJobsProvider);
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
+    }
+  }
+
+  Future<String?> uploadImage(List<int> bytes) async {
+    try {
+      return await _jobRepository.uploadJobImage(bytes: bytes);
+    } catch (e) {
+      state = state.copyWith(errorMessage: e.toString());
+      return null;
     }
   }
 

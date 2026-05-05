@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../providers/services_provider.dart';
@@ -19,6 +21,7 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
   late TextEditingController _priceController;
   late TextEditingController _deliveryTimeController;
   String _selectedCategory = 'Graphic Design';
+  final List<File> _selectedImages = [];
 
   final List<String> _categories = [
     'Graphic Design',
@@ -51,22 +54,57 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
     super.dispose();
   }
 
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+    );
+
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImages.add(File(pickedFile.path));
+      });
+    }
+  }
+
   Future<void> _handleCreate() async {
     if (_formKey.currentState!.validate()) {
       final currentUser = ref.read(supabaseServiceProvider).currentUser;
       if (currentUser == null) return;
 
-      final data = {
-        'user_id': currentUser.id,
-        'title': _titleController.text.trim(),
-        'description': _descriptionController.text.trim(),
-        'category': _selectedCategory,
-        'price': double.parse(_priceController.text),
-        'delivery_time': int.parse(_deliveryTimeController.text),
-        'is_active': true,
-      };
+      final List<String> imageUrls = [];
+      final serviceNotifier = ref.read(serviceNotifierProvider.notifier);
 
-      await ref.read(serviceNotifierProvider.notifier).createService(data);
+      try {
+        // Upload images first
+        for (final file in _selectedImages) {
+          final bytes = await file.readAsBytes();
+          final url = await serviceNotifier.uploadImage(bytes);
+          if (url != null) {
+            imageUrls.add(url);
+          }
+        }
+
+        final data = {
+          'user_id': currentUser.id,
+          'title': _titleController.text.trim(),
+          'description': _descriptionController.text.trim(),
+          'category': _selectedCategory,
+          'price': double.parse(_priceController.text),
+          'delivery_time': int.parse(_deliveryTimeController.text),
+          'images': imageUrls,
+          'is_active': true,
+        };
+
+        await serviceNotifier.createService(data);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error uploading images: $e')),
+          );
+        }
+      }
     }
   }
 
@@ -107,6 +145,66 @@ class _CreateServiceScreenState extends ConsumerState<CreateServiceScreen> {
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Image Picker
+              const Text(
+                'Service Images',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 100,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    ..._selectedImages.map((file) => Container(
+                          width: 100,
+                          height: 100,
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            image: DecorationImage(
+                              image: FileImage(file),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          child: Align(
+                            alignment: Alignment.topRight,
+                            child: IconButton(
+                              icon: const Icon(Icons.close, color: Colors.white),
+                              onPressed: () {
+                                setState(() {
+                                  _selectedImages.remove(file);
+                                });
+                              },
+                            ),
+                          ),
+                        )),
+                    if (_selectedImages.length < 5)
+                      GestureDetector(
+                        onTap: _pickImage,
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.borderColor),
+                          ),
+                          child: const Icon(
+                            Icons.add_a_photo_outlined,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),

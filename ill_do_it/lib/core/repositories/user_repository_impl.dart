@@ -54,6 +54,33 @@ class UserRepositoryImpl implements UserRepository {
   }
 
   @override
+  Future<String> uploadAvatar({required List<int> bytes}) async {
+    final currentUser = _supabaseService.currentUser;
+    if (currentUser == null) {
+      throw AuthenticationException('No user logged in');
+    }
+
+    try {
+      final fileName = 'avatar_${currentUser.id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final path = 'avatars/$fileName';
+      
+      final url = await _supabaseService.uploadFile(
+        bucket: 'avatars',
+        path: path,
+        bytes: bytes,
+      );
+      
+      // Update profile with new avatar URL
+      await updateUserProfile(data: {'avatar_url': url});
+      
+      return url;
+    } catch (e) {
+      if (e is ServerException || e is AuthenticationException) rethrow;
+      throw ServerException('Failed to upload avatar: $e');
+    }
+  }
+
+  @override
   Future<User> getUserById({required String userId}) async {
     try {
       final data = await _supabaseService.query(
@@ -78,14 +105,9 @@ class UserRepositoryImpl implements UserRepository {
     String? category,
   }) async {
     try {
-      // In a real app, this would be a more complex Postgres search
-      // For now, we'll do a simple match on display_name or bio
-      // Note: SupabaseService.query needs to support 'ilike' or similar for true search
-      // Using existing query method which only supports 'eq' and 'in'
-      
       final results = await _supabaseService.query(
         table: 'users',
-        // filters: {'display_name': query}, // Basic equality for now
+        searchFilters: {'display_name': query},
       );
 
       return results.map((e) => User.fromJson(e)).toList();
@@ -103,6 +125,24 @@ class UserRepositoryImpl implements UserRepository {
       );
     } catch (e) {
       throw ServerException('Failed to fetch reviews: $e');
+    }
+  }
+
+  @override
+  Future<void> requestVerification() async {
+    final currentUser = _supabaseService.currentUser;
+    if (currentUser == null) {
+      throw AuthenticationException('No user logged in');
+    }
+
+    try {
+      await _supabaseService.update(
+        table: 'users',
+        id: currentUser.id,
+        data: {'is_verified': true},
+      );
+    } catch (e) {
+      throw ServerException('Failed to request verification: $e');
     }
   }
 }

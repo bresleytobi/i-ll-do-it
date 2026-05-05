@@ -30,11 +30,13 @@ class SupabaseService {
   Future<User> signUpWithEmail({
     required String email,
     required String password,
+    Map<String, dynamic>? data,
   }) async {
     try {
       final response = await client.auth.signUp(
         email: email,
         password: password,
+        data: data,
       );
       return response.user!;
     } on AuthException catch (e) {
@@ -99,6 +101,36 @@ class SupabaseService {
     }
   }
 
+  /// Sign in with OTP (Phone)
+  Future<void> signInWithPhone({required String phone}) async {
+    try {
+      await client.auth.signInWithOtp(phone: phone);
+    } on AuthException catch (e) {
+      throw AuthenticationException(e.message);
+    } catch (e) {
+      throw ServerException('Phone sign in failed: $e');
+    }
+  }
+
+  /// Verify OTP
+  Future<User> verifyOTP({
+    required String phone,
+    required String token,
+  }) async {
+    try {
+      final response = await client.auth.verifyOTP(
+        phone: phone,
+        token: token,
+        type: OtpType.sms,
+      );
+      return response.user!;
+    } on AuthException catch (e) {
+      throw AuthenticationException(e.message);
+    } catch (e) {
+      throw ServerException('OTP verification failed: $e');
+    }
+  }
+
   /// Update user profile
   Future<void> updateUserProfile({
     required Map<String, dynamic> data,
@@ -119,6 +151,7 @@ class SupabaseService {
     required String table,
     String? select,
     Map<String, dynamic>? filters,
+    Map<String, String>? searchFilters,
   }) async {
     try {
       var query = client.from(table).select(select ?? '*');
@@ -130,6 +163,12 @@ class SupabaseService {
           } else {
             query = query.eq(key, value);
           }
+        });
+      }
+
+      if (searchFilters != null) {
+        searchFilters.forEach((key, value) {
+          query = query.ilike(key, '%$value%');
         });
       }
 

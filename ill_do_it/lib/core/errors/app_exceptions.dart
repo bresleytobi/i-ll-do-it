@@ -28,6 +28,10 @@ class LocalStorageException extends AppException {
   LocalStorageException(String message) : super(message);
 }
 
+class InsufficientFundsException extends AppException {
+  InsufficientFundsException(String message) : super(message);
+}
+
 class NotFoundException extends AppException {
   NotFoundException(String message) : super(message);
 }

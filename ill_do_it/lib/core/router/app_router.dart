@@ -14,12 +14,16 @@ import '../../features/auth/presentation/providers/auth_provider.dart';
 
 import '../../features/services/presentation/screens/create_service_screen.dart';
 import '../../features/jobs/presentation/screens/create_job_screen.dart';
+import '../../features/profile/presentation/screens/edit_profile_screen.dart';
+
+import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 
 /// Navigation path constants
 class AppRoutes {
   static const String splash = '/';
   static const String login = '/login';
   static const String signup = '/signup';
+  static const String forgotPassword = '/forgot-password';
   static const String home = '/home';
   static const String explore = '/explore';
   static const String services = '/services';
@@ -27,8 +31,8 @@ class AppRoutes {
   static const String jobs = '/jobs';
   static const String createJob = '/create-job';
   static const String profile = '/profile';
+  static const String editProfile = '/edit-profile';
   static const String wallet = '/wallet';
-  static const String chat = '/chat';
 }
 
 /// GoRouter provider for navigation
@@ -44,16 +48,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       
       final isLoggingIn = state.matchedLocation == AppRoutes.login;
       final isSigningUp = state.matchedLocation == AppRoutes.signup;
+      final isForgotPassword = state.matchedLocation == AppRoutes.forgotPassword;
       final isSplash = state.matchedLocation == AppRoutes.splash;
 
       if (isLoading) return null;
 
       if (!isAuthenticated) {
-        if (isLoggingIn || isSigningUp || isSplash) return null;
+        if (isLoggingIn || isSigningUp || isForgotPassword || isSplash) return null;
         return AppRoutes.login;
       }
 
-      if (isAuthenticated && (isLoggingIn || isSigningUp || isSplash)) {
+      if (isAuthenticated && (isLoggingIn || isSigningUp || isForgotPassword || isSplash)) {
         return AppRoutes.home;
       }
 
@@ -74,6 +79,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.signup,
         builder: (context, state) => const SignupScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.forgotPassword,
+        builder: (context, state) => const ForgotPasswordScreen(),
       ),
 
       // Main App Routes
@@ -104,6 +113,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.profile,
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.editProfile,
+        builder: (context, state) => const EditProfileScreen(),
       ),
       GoRoute(
         path: AppRoutes.wallet,

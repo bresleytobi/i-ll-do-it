@@ -13,6 +13,7 @@ class User with _$User {
     String? bio,
     @JsonKey(name: 'avatar_url') String? avatarUrl,
     String? location,
+    @JsonKey(name: 'push_token') String? pushToken,
     @Default([]) List<String> skills,
     @Default(0.0) double rating,
     @JsonKey(name: 'completed_jobs') @Default(0) int completedJobs,

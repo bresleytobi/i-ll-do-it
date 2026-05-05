@@ -37,7 +37,6 @@ class AppStrings {
   static const String explore = 'Explore';
   static const String services = 'Services';
   static const String jobs = 'Jobs';
-  static const String chat = 'Chat';
   static const String wallet = 'Wallet';
   static const String profile = 'Profile';
 
@@ -103,6 +102,5 @@ class AppStrings {
   static const String profileUpdated = 'Profile updated successfully';
   static const String serviceCreated = 'Service created successfully';
   static const String jobPosted = 'Job posted successfully';
-  static const String messageSent = 'Message sent';
   static const String copied = 'Copied to clipboard';
 }

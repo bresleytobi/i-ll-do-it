@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 import '../../../../core/services/supabase_service.dart';
+import '../../../../core/services/notification_service.dart';
 
 /// State for authentication
 class AuthState {
@@ -32,8 +33,9 @@ class AuthState {
 /// Notifier for authentication state
 class AuthNotifier extends StateNotifier<AuthState> {
   final SupabaseService _supabaseService;
+  final Ref _ref;
 
-  AuthNotifier(this._supabaseService) : super(AuthState(user: _supabaseService.currentUser)) {
+  AuthNotifier(this._supabaseService, this._ref) : super(AuthState(user: _supabaseService.currentUser)) {
     // Listen to auth state changes
     _supabaseService.authStateChanges.listen((event) {
       state = state.copyWith(user: event.session?.user);
@@ -51,15 +53,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await _supabaseService.signUpWithEmail(
         email: email,
         password: password,
+        data: fullName != null ? {'full_name': fullName} : null,
       );
-
-      if (fullName != null) {
-        // Wait a bit for the session to be established
-        await Future.delayed(const Duration(milliseconds: 500));
-        await _supabaseService.updateUserProfile(
-          data: {'full_name': fullName},
-        );
-      }
+      
+      // Update push token
+      await _ref.read(notificationServiceProvider).updateToken();
       
       state = state.copyWith(isLoading: false);
     } catch (e) {
@@ -78,6 +76,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
         email: email,
         password: password,
       );
+      
+      // Update push token
+      await _ref.read(notificationServiceProvider).updateToken();
+      
       state = state.copyWith(isLoading: false);
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
@@ -89,6 +91,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       await _supabaseService.signInWithGoogle();
+      
+      // Update push token
+      await _ref.read(notificationServiceProvider).updateToken();
+      
       state = state.copyWith(isLoading: false);
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
@@ -106,6 +112,46 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Reset password
+  Future<void> resetPassword({required String email}) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      await _supabaseService.resetPassword(email: email);
+      state = state.copyWith(isLoading: false);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+    }
+  }
+
+  /// Sign in with phone
+  Future<void> signInWithPhone({required String phone}) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      await _supabaseService.signInWithPhone(phone: phone);
+      state = state.copyWith(isLoading: false);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+    }
+  }
+
+  /// Verify OTP
+  Future<void> verifyOTP({
+    required String phone,
+    required String token,
+  }) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      await _supabaseService.verifyOTP(phone: phone, token: token);
+      
+      // Update push token
+      await _ref.read(notificationServiceProvider).updateToken();
+      
+      state = state.copyWith(isLoading: false);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+    }
+  }
+
   /// Clear error message
   void clearError() {
     state = state.copyWith(errorMessage: null);
@@ -115,5 +161,5 @@ class AuthNotifier extends StateNotifier<AuthState> {
 /// Provider for AuthNotifier
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final supabaseService = ref.watch(supabaseServiceProvider);
-  return AuthNotifier(supabaseService);
+  return AuthNotifier(supabaseService, ref);
 });

@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/models/service.dart';
 import '../../../../core/models/job.dart';
+import '../../../../core/models/user.dart';
 import '../../../../core/repositories/service_repository_impl.dart';
 import '../../../../core/repositories/job_repository_impl.dart';
+import '../../../../core/repositories/user_repository_impl.dart';
 
 /// Search query state provider
 final searchQueryProvider = StateProvider<String>((ref) => '');
@@ -10,8 +12,8 @@ final searchQueryProvider = StateProvider<String>((ref) => '');
 /// Selected category provider
 final selectedCategoryProvider = StateProvider<String?>((ref) => null);
 
-/// Search type (Services or Jobs)
-enum SearchType { services, jobs }
+/// Search type (Services, Jobs or Users)
+enum SearchType { services, jobs, users }
 final searchTypeProvider = StateProvider<SearchType>((ref) => SearchType.services);
 
 /// Explore services results provider
@@ -46,4 +48,16 @@ final exploreJobsProvider = FutureProvider<List<Job>>((ref) async {
   }
 
   return jobRepository.getJobs(category: category);
+});
+
+/// Explore users results provider
+final exploreUsersProvider = FutureProvider<List<User>>((ref) async {
+  final query = ref.watch(searchQueryProvider);
+  final userRepository = ref.watch(userRepositoryProvider);
+
+  if (query.isEmpty) {
+    return [];
+  }
+
+  return userRepository.searchUsers(query: query);
 });

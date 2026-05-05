@@ -24,6 +24,28 @@ class ServiceRepositoryImpl implements ServiceRepository {
   }
 
   @override
+  Future<String> uploadServiceImage({required List<int> bytes}) async {
+    final currentUser = _supabaseService.currentUser;
+    if (currentUser == null) {
+      throw AuthenticationException('No user logged in');
+    }
+
+    try {
+      final fileName = 'service_${currentUser.id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final path = 'services/$fileName';
+      
+      return await _supabaseService.uploadFile(
+        bucket: 'service-images',
+        path: path,
+        bytes: bytes,
+      );
+    } catch (e) {
+      if (e is ServerException || e is AuthenticationException) rethrow;
+      throw ServerException('Failed to upload service image: $e');
+    }
+  }
+
+  @override
   Future<List<Service>> getServices({String? category, String? sortBy}) async {
     try {
       final filters = category != null ? {'category': category} : null;
@@ -91,17 +113,15 @@ class ServiceRepositoryImpl implements ServiceRepository {
     String? location,
   }) async {
     try {
-      // Basic implementation using query (equality only for now)
+      final filters = category != null ? {'category': category} : null;
+      
       final results = await _supabaseService.query(
         table: 'services',
+        filters: filters,
+        searchFilters: {'title': query},
       );
       
-      // Filter locally for now as SupabaseService query is limited
-      return results
-          .map((e) => Service.fromJson(e))
-          .where((s) => s.title.toLowerCase().contains(query.toLowerCase()) || 
-                       s.description.toLowerCase().contains(query.toLowerCase()))
-          .toList();
+      return results.map((e) => Service.fromJson(e)).toList();
     } catch (e) {
       throw ServerException('Search failed: $e');
     }

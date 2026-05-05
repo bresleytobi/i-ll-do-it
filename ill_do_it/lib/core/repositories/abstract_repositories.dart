@@ -11,6 +11,9 @@ abstract class UserRepository {
   /// Update user profile
   Future<void> updateUserProfile({required Map<String, dynamic> data});
 
+  /// Upload user avatar
+  Future<String> uploadAvatar({required List<int> bytes});
+
   /// Get user by ID
   Future<User> getUserById({required String userId});
 
@@ -22,6 +25,9 @@ abstract class UserRepository {
 
   /// Get user reviews
   Future<List<Map<String, dynamic>>> getUserReviews({required String userId});
+
+  /// Request user verification
+  Future<void> requestVerification();
 }
 
 /// Abstract repository for service operations
@@ -30,6 +36,9 @@ abstract class ServiceRepository {
   Future<Service> createService({
     required Map<String, dynamic> data,
   });
+
+  /// Upload service image
+  Future<String> uploadServiceImage({required List<int> bytes});
 
   /// Get all services
   Future<List<Service>> getServices({
@@ -65,6 +74,9 @@ abstract class JobRepository {
   /// Create a new job
   Future<Job> createJob({required Map<String, dynamic> data});
 
+  /// Upload job image
+  Future<String> uploadJobImage({required List<int> bytes});
+
   /// Get all jobs
   Future<List<Job>> getJobs({String? status, String? category});
 
@@ -91,28 +103,6 @@ abstract class JobRepository {
   Future<List<Job>> getMyJobs();
 }
 
-/// Abstract repository for message operations
-abstract class MessageRepository {
-  /// Send message
-  Future<Map<String, dynamic>> sendMessage({
-    required String receiverId,
-    required String content,
-    String? imageUrl,
-  });
-
-  /// Get conversations
-  Future<List<Map<String, dynamic>>> getConversations();
-
-  /// Get messages with user
-  Future<List<Map<String, dynamic>>> getMessages({required String userId});
-
-  /// Mark message as read
-  Future<void> markAsRead({required String messageId});
-
-  /// Stream messages
-  Stream<Map<String, dynamic>> streamMessages({required String userId});
-}
-
 /// Abstract repository for transaction operations
 abstract class TransactionRepository {
   /// Get transaction history
@@ -120,6 +110,12 @@ abstract class TransactionRepository {
 
   /// Get wallet balance
   Future<double> getWalletBalance();
+
+  /// Deposit funds into wallet
+  Future<Transaction> depositFunds({
+    required double amount,
+    required String reference,
+  });
 
   /// Withdraw funds
   Future<Transaction> withdrawFunds({

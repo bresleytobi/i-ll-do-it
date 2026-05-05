@@ -1385,7 +1385,6 @@ The MVP succeeds if:
 * users return regularly
 * workers earn money
 * clients trust the platform
-* conversations happen daily
 
 Not downloads.
 
@@ -1439,3 +1438,6 @@ If South Africans begin saying:
 “Just post it on I’ll Do It.”
 
 then the platform has succeeded.
+ucceeded.
+ded.
+.

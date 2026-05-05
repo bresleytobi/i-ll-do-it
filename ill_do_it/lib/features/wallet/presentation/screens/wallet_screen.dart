@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/models/transaction.dart';
+import '../../../../core/repositories/transaction_repository_impl.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../providers/wallet_provider.dart';
 
@@ -81,9 +82,7 @@ class WalletScreen extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: () {
-                              // TODO: Implement withdrawal
-                            },
+                            onPressed: () => _showWithdrawDialog(context, ref),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.darkBg,
                             ),
@@ -96,9 +95,7 @@ class WalletScreen extends ConsumerWidget {
                         const SizedBox(width: 12),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: () {
-                              // TODO: Implement add funds
-                            },
+                            onPressed: () => _showDepositDialog(context, ref),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.darkBg,
                             ),
@@ -203,15 +200,17 @@ class WalletScreen extends ConsumerWidget {
   }
 
   Widget _buildTransactionItem(Transaction tx, String? currentUserId) {
-    final isIncome = tx.receiverId == currentUserId;
     final currencyFormat = NumberFormat.currency(symbol: 'R ', decimalDigits: 2);
     final dateStr = DateFormat('MMM dd, yyyy').format(tx.createdAt);
+    final isIncoming = tx.type == 'deposit' || (tx.type == 'payment' && tx.receiverId == currentUserId);
 
     IconData icon;
     if (tx.type == 'withdrawal') {
       icon = Icons.account_balance_wallet_outlined;
+    } else if (tx.type == 'deposit') {
+      icon = Icons.arrow_downward;
     } else if (tx.type == 'payment') {
-      icon = isIncome ? Icons.arrow_downward : Icons.arrow_upward;
+      icon = isIncoming ? Icons.arrow_downward : Icons.arrow_upward;
     } else {
       icon = Icons.credit_card;
     }
@@ -230,7 +229,7 @@ class WalletScreen extends ConsumerWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: isIncome
+              color: isIncoming
                   ? AppColors.success.withOpacity(0.2)
                   : AppColors.error.withOpacity(0.2),
               borderRadius: BorderRadius.circular(8),
@@ -238,7 +237,7 @@ class WalletScreen extends ConsumerWidget {
             child: Icon(
               icon,
               size: 20,
-              color: isIncome ? AppColors.success : AppColors.error,
+              color: isIncoming ? AppColors.success : AppColors.error,
             ),
           ),
           const SizedBox(width: 12),
@@ -268,15 +267,149 @@ class WalletScreen extends ConsumerWidget {
             ),
           ),
           Text(
-            '${isIncome ? '+' : '-'}${currencyFormat.format(tx.amount)}',
+            '${isIncoming ? '+' : '-'}${currencyFormat.format(tx.amount)}',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: isIncome ? AppColors.success : AppColors.error,
+              color: isIncoming ? AppColors.success : AppColors.error,
             ),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _showDepositDialog(BuildContext context, WidgetRef ref) async {
+    final amountController = TextEditingController();
+    final transactionRepository = ref.read(transactionRepositoryProvider);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Add Funds'),
+          content: TextField(
+            controller: amountController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Amount',
+              prefixText: 'R ',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    final amount = double.tryParse(amountController.text.replaceAll(',', '.')) ?? 0.0;
+    if (amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid amount.')),
+      );
+      return;
+    }
+
+    try {
+      await transactionRepository.depositFunds(
+        amount: amount,
+        reference: 'Wallet top-up',
+      );
+      ref.invalidate(balanceProvider);
+      ref.invalidate(transactionHistoryProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Funds added successfully.')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to add funds: $e')),
+      );
+    }
+  }
+
+  Future<void> _showWithdrawDialog(BuildContext context, WidgetRef ref) async {
+    final amountController = TextEditingController();
+    final accountController = TextEditingController();
+    final transactionRepository = ref.read(transactionRepositoryProvider);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Withdraw Funds'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: amountController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Amount',
+                  prefixText: 'R ',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: accountController,
+                decoration: const InputDecoration(
+                  labelText: 'Bank account / reference',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+              child: const Text('Request'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    final amount = double.tryParse(amountController.text.replaceAll(',', '.')) ?? 0.0;
+    final bankAccount = accountController.text.trim();
+    if (amount <= 0 || bankAccount.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid amount and bank account.')),
+      );
+      return;
+    }
+
+    try {
+      await transactionRepository.withdrawFunds(
+        amount: amount,
+        bankAccount: bankAccount,
+      );
+      ref.invalidate(balanceProvider);
+      ref.invalidate(transactionHistoryProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Withdrawal request submitted.')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to withdraw funds: $e')),
+      );
+    }
   }
 }

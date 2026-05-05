@@ -99,6 +99,26 @@ class ProfileScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
+                      )
+                    else
+                      TextButton.icon(
+                        onPressed: () async {
+                          try {
+                            await ref.read(userRepositoryProvider).requestVerification();
+                            ref.invalidate(profileProvider);
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error: $e')),
+                              );
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.verified_user_outlined, size: 16),
+                        label: const Text('Verify Account'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                        ),
                       ),
                   ],
                 ),
@@ -153,7 +173,7 @@ class ProfileScreen extends ConsumerWidget {
                 height: 48,
                 child: ElevatedButton(
                   onPressed: () {
-                    // TODO: Navigate to edit profile
+                    context.push(AppRoutes.editProfile);
                   },
                   child: const Text('Edit Profile'),
                 ),

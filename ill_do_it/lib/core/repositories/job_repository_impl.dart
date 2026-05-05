@@ -24,6 +24,28 @@ class JobRepositoryImpl implements JobRepository {
   }
 
   @override
+  Future<String> uploadJobImage({required List<int> bytes}) async {
+    final currentUser = _supabaseService.currentUser;
+    if (currentUser == null) {
+      throw AuthenticationException('No user logged in');
+    }
+
+    try {
+      final fileName = 'job_${currentUser.id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final path = 'jobs/$fileName';
+      
+      return await _supabaseService.uploadFile(
+        bucket: 'job-images',
+        path: path,
+        bytes: bytes,
+      );
+    } catch (e) {
+      if (e is ServerException || e is AuthenticationException) rethrow;
+      throw ServerException('Failed to upload job image: $e');
+    }
+  }
+
+  @override
   Future<List<Job>> getJobs({String? status, String? category}) async {
     try {
       final filters = <String, dynamic>{};
@@ -94,15 +116,15 @@ class JobRepositoryImpl implements JobRepository {
     String? location,
   }) async {
     try {
+      final filters = category != null ? {'category': category} : null;
+
       final results = await _supabaseService.query(
         table: 'jobs',
+        filters: filters,
+        searchFilters: {'title': query},
       );
       
-      return results
-          .map((e) => Job.fromJson(e))
-          .where((j) => j.title.toLowerCase().contains(query.toLowerCase()) || 
-                       j.description.toLowerCase().contains(query.toLowerCase()))
-          .toList();
+      return results.map((e) => Job.fromJson(e)).toList();
     } catch (e) {
       throw ServerException('Search failed: $e');
     }

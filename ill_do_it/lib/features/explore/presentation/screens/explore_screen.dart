@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/models/service.dart';
 import '../../../../core/models/job.dart';
+import '../../../../core/models/user.dart';
 import '../../../../core/widgets/main_bottom_nav_bar.dart';
 import '../providers/explore_provider.dart';
 
@@ -40,7 +41,9 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final resultsAsync = searchType == SearchType.services
         ? ref.watch(exploreServicesProvider)
-        : ref.watch(exploreJobsProvider);
+        : (searchType == SearchType.jobs
+            ? ref.watch(exploreJobsProvider)
+            : ref.watch(exploreUsersProvider));
 
     return Scaffold(
       backgroundColor: AppColors.darkBg,
@@ -81,6 +84,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                 _buildTypeChip(SearchType.services, 'Services'),
                 const SizedBox(width: 8),
                 _buildTypeChip(SearchType.jobs, 'Jobs'),
+                const SizedBox(width: 8),
+                _buildTypeChip(SearchType.users, 'Users'),
               ],
             ),
             const SizedBox(height: 24),
@@ -130,7 +135,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
 
             // Results
             Text(
-              '${searchType == SearchType.services ? 'Services' : 'Jobs'} Results',
+              '${searchType == SearchType.services ? 'Services' : (searchType == SearchType.jobs ? 'Jobs' : 'Users')} Results',
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -149,6 +154,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                         final item = items[index];
                         if (item is Service) return _buildServiceCard(item);
                         if (item is Job) return _buildJobCard(item);
+                        if (item is User) return _buildUserCard(item);
                         return const SizedBox.shrink();
                       },
                     ),
@@ -356,6 +362,95 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               fontWeight: FontWeight.w600,
               color: AppColors.primary,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserCard(User user) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borderColor),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 25,
+            backgroundColor: AppColors.primary,
+            backgroundImage: user.avatarUrl != null
+                ? NetworkImage(user.avatarUrl!)
+                : null,
+            child: user.avatarUrl == null
+                ? const Icon(Icons.person, color: AppColors.darkBg)
+                : null,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      user.displayName,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    if (user.isVerified) ...[
+                      const SizedBox(width: 4),
+                      const Icon(Icons.verified, size: 14, color: AppColors.primary),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  user.skills.isNotEmpty
+                      ? user.skills.join(', ')
+                      : 'No skills listed',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.star, size: 14, color: AppColors.primary),
+                  const SizedBox(width: 4),
+                  Text(
+                    user.rating.toStringAsFixed(1),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${user.completedJobs} jobs',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
           ),
         ],
       ),

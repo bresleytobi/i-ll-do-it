@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/models/service.dart';
+import '../../../../core/repositories/abstract_repositories.dart';
 import '../../../../core/repositories/service_repository_impl.dart';
 
 /// Provider for current user's services
@@ -48,6 +49,15 @@ class ServiceNotifier extends StateNotifier<ServiceState> {
       _ref.invalidate(myServicesProvider);
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
+    }
+  }
+
+  Future<String?> uploadImage(List<int> bytes) async {
+    try {
+      return await _serviceRepository.uploadServiceImage(bytes: bytes);
+    } catch (e) {
+      state = state.copyWith(errorMessage: e.toString());
+      return null;
     }
   }
 

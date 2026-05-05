@@ -42,18 +42,52 @@ class TransactionRepositoryImpl implements TransactionRepository {
 
     try {
       final transactions = await getTransactionHistory();
-      
       double balance = 0.0;
+
       for (var tx in transactions) {
-        if (tx.receiverId == currentUser.id) {
+        if (tx.type == 'deposit' && tx.receiverId == currentUser.id) {
           balance += tx.amount;
-        } else if (tx.senderId == currentUser.id) {
+        } else if (tx.type == 'withdrawal' && tx.senderId == currentUser.id) {
           balance -= tx.amount;
+        } else if (tx.type == 'payment') {
+          if (tx.receiverId == currentUser.id) {
+            balance += tx.amount;
+          } else if (tx.senderId == currentUser.id) {
+            balance -= tx.amount;
+          }
         }
       }
       return balance;
     } catch (e) {
       throw ServerException('Failed to calculate balance: $e');
+    }
+  }
+
+  @override
+  Future<Transaction> depositFunds({
+    required double amount,
+    required String reference,
+  }) async {
+    final currentUser = _supabaseService.currentUser;
+    if (currentUser == null) {
+      throw AuthenticationException('No user logged in');
+    }
+
+    try {
+      final response = await _supabaseService.insert(
+        table: 'transactions',
+        data: {
+          'sender_id': currentUser.id,
+          'receiver_id': currentUser.id,
+          'amount': amount,
+          'type': 'deposit',
+          'status': 'completed',
+          'reference': reference,
+        },
+      );
+      return Transaction.fromJson(response);
+    } catch (e) {
+      throw ServerException('Deposit failed: $e');
     }
   }
 
@@ -67,13 +101,17 @@ class TransactionRepositoryImpl implements TransactionRepository {
       throw AuthenticationException('No user logged in');
     }
 
+    final currentBalance = await getWalletBalance();
+    if (amount > currentBalance) {
+      throw InsufficientFundsException('Insufficient wallet balance for this withdrawal');
+    }
+
     try {
-      // Create a transaction record for withdrawal
       final response = await _supabaseService.insert(
         table: 'transactions',
         data: {
           'sender_id': currentUser.id,
-          'receiver_id': 'SYSTEM_WITHDRAWAL', // Placeholder
+          'receiver_id': currentUser.id,
           'amount': amount,
           'type': 'withdrawal',
           'status': 'pending',
@@ -95,6 +133,11 @@ class TransactionRepositoryImpl implements TransactionRepository {
     final currentUser = _supabaseService.currentUser;
     if (currentUser == null) {
       throw AuthenticationException('No user logged in');
+    }
+
+    final currentBalance = await getWalletBalance();
+    if (amount > currentBalance) {
+      throw InsufficientFundsException('Insufficient wallet balance for this payment');
     }
 
     try {
